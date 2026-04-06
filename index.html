@@ -1,0 +1,3209 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>SiaHost Agent · Agentic Automation for Sia Hosts v1.0</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #070a10;
+        font-family: 'DM Sans', sans-serif;
+        color: #e8eeff;
+      }
+      body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+        background:
+          radial-gradient(
+            ellipse 60% 40% at 10% 20%,
+            rgba(6, 255, 165, 0.05) 0%,
+            transparent 70%
+          ),
+          radial-gradient(
+            ellipse 50% 35% at 90% 80%,
+            rgba(0, 212, 255, 0.05) 0%,
+            transparent 70%
+          ),
+          radial-gradient(
+            ellipse 70% 50% at 50% 50%,
+            rgba(167, 139, 250, 0.03) 0%,
+            transparent 70%
+          );
+      }
+
+      /* TOPBAR */
+      .topbar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 300;
+        height: 52px;
+        background: rgba(7, 10, 16, 0.97);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 20px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .brand-pill {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 20px;
+        padding: 5px 12px 5px 9px;
+      }
+      .brand-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #06ffa5;
+        animation: blink 2s ease-in-out infinite;
+        flex-shrink: 0;
+      }
+      @keyframes blink {
+        0%,
+        100% {
+          opacity: 1;
+          box-shadow:
+            0 0 8px #06ffa5,
+            0 0 16px #06ffa544;
+        }
+        50% {
+          opacity: 0.35;
+          box-shadow: none;
+        }
+      }
+      .brand-name {
+        font-size: 13px;
+        font-weight: 700;
+        color: #f0f4ff;
+        letter-spacing: -0.02em;
+      }
+      .brand-ver {
+        font-family: 'DM Mono', monospace;
+        font-size: 8px;
+        background: rgba(6, 255, 165, 0.15);
+        color: #06ffa5;
+        border: 1px solid rgba(6, 255, 165, 0.35);
+        border-radius: 4px;
+        padding: 2px 6px;
+        margin-left: 2px;
+      }
+      .brand-sub {
+        font-family: 'DM Mono', monospace;
+        font-size: 7.5px;
+        color: rgba(255, 255, 255, 0.2);
+        letter-spacing: 0.12em;
+      }
+      .topbar-right {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .ctrl-btn {
+        font-family: 'DM Mono', monospace;
+        font-size: 8px;
+        letter-spacing: 0.08em;
+        padding: 6px 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.03);
+        color: rgba(255, 255, 255, 0.38);
+        cursor: pointer;
+        transition: all 0.18s;
+        white-space: nowrap;
+      }
+      .ctrl-btn:hover {
+        color: rgba(255, 255, 255, 0.8);
+        border-color: rgba(255, 255, 255, 0.22);
+        background: rgba(255, 255, 255, 0.06);
+      }
+      .ctrl-play {
+        background: rgba(6, 255, 165, 0.08);
+        color: #06ffa5;
+        border-color: rgba(6, 255, 165, 0.28);
+      }
+      .ctrl-play:hover {
+        background: rgba(6, 255, 165, 0.16);
+        border-color: rgba(6, 255, 165, 0.55);
+      }
+      .ctrl-play.playing {
+        background: rgba(245, 200, 66, 0.1);
+        color: #f5c842;
+        border-color: rgba(245, 200, 66, 0.32);
+      }
+
+      /* STAGE */
+      #stage {
+        position: fixed;
+        inset: 52px 0 56px 0;
+        overflow: hidden;
+        z-index: 1;
+        touch-action: none;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      #stage.mode-select {
+        cursor: default;
+      }
+      #stage.mode-pan {
+        cursor: grab;
+      }
+      #stage.mode-pan.panning {
+        cursor: grabbing;
+      }
+      #canvas-root {
+        position: absolute;
+        top: 0;
+        left: 0;
+        transform-origin: 0 0;
+      }
+      #scroll-area {
+        position: relative;
+        width: 1780px;
+        min-height: 1200px;
+        padding: 14px 28px 14px 4px;
+      }
+      #xlink-svg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 6;
+        overflow: visible;
+      }
+
+      /* MANDATORY SWIMLANE STRUCTURE */
+      .lane-row {
+        display: flex;
+        align-items: stretch;
+        margin: 0 0 14px 0;
+        animation: fadeSlide 0.5s ease both;
+      }
+      .lane-row:nth-child(2) {
+        animation-delay: 0.05s;
+      }
+      .lane-row:nth-child(3) {
+        animation-delay: 0.12s;
+      }
+      .lane-row:nth-child(4) {
+        animation-delay: 0.19s;
+      }
+      .lane-row:nth-child(5) {
+        animation-delay: 0.26s;
+      }
+      .lane-row:nth-child(6) {
+        animation-delay: 0.33s;
+      }
+      .lane-row:nth-child(7) {
+        animation-delay: 0.4s;
+      }
+      .lane-row:nth-child(8) {
+        animation-delay: 0.47s;
+      }
+      .lane-row:nth-child(9) {
+        animation-delay: 0.54s;
+      }
+      .lane-row:nth-child(10) {
+        animation-delay: 0.61s;
+      }
+      @keyframes fadeSlide {
+        from {
+          opacity: 0;
+          transform: translateX(-28px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+
+      .lane-gutter {
+        width: 72px;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 0;
+        overflow: hidden;
+        gap: 6px;
+      }
+      .lane-num {
+        font-family: 'DM Mono', monospace;
+        font-size: 8px;
+        font-weight: 500;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        opacity: 0.5;
+        user-select: none;
+        flex-shrink: 0;
+      }
+      .lane-label {
+        font-family: 'DM Mono', monospace;
+        font-size: 7px;
+        font-weight: 500;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        user-select: none;
+        writing-mode: vertical-rl;
+        text-orientation: mixed;
+        transform: rotate(180deg);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex: 1;
+        min-height: 0;
+      }
+      .swimlane {
+        flex: 1;
+        position: relative;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 18px 16px;
+        display: flex;
+        align-items: center;
+      }
+      .lane-nodes {
+        display: flex;
+        align-items: center;
+        gap: 0;
+        flex-wrap: nowrap;
+      }
+
+      /* INLINE ARROWS */
+      .inline-arrow {
+        width: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      /* NODE CARDS — MANDATORY BLUR-FREE */
+      .fnode {
+        cursor: pointer;
+        transition:
+          opacity 0.3s,
+          transform 0.2s;
+        flex-shrink: 0;
+      }
+      .fnode.dimmed {
+        opacity: 0.14;
+        pointer-events: none;
+      }
+      .fnode.lit {
+        opacity: 1;
+      }
+      .fnode-inner {
+        width: 130px;
+        background: rgba(14, 18, 28, 0.88);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 14px;
+        padding: 10px 10px 8px;
+        transition:
+          transform 0.2s,
+          box-shadow 0.2s,
+          border-color 0.2s;
+        position: relative;
+        overflow: hidden;
+        transform: translateZ(0);
+      }
+      .fnode-inner::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 14px;
+        background: linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.04),
+          transparent
+        );
+        pointer-events: none;
+      }
+      .fnode:hover .fnode-inner,
+      .fnode.active .fnode-inner {
+        border-color: currentColor;
+        box-shadow:
+          0 0 0 1px currentColor,
+          0 8px 28px -4px currentColor;
+        transform: translateZ(0) translateY(-4px);
+      }
+      .mode-pan .fnode {
+        cursor: inherit;
+      }
+      .mode-pan .fnode:hover .fnode-inner {
+        transform: translateZ(0);
+        box-shadow: none;
+        border-color: rgba(255, 255, 255, 0.07);
+      }
+      .fnode-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 7px;
+        position: relative;
+      }
+      .fnode-badge {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        font-family: 'DM Mono', monospace;
+        font-size: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2;
+        font-weight: 600;
+        color: #070a10;
+      }
+      .fnode-name {
+        font-size: 10.5px;
+        font-weight: 600;
+        line-height: 1.25;
+        color: #e8eeff;
+      }
+      .fnode-type {
+        font-family: 'DM Mono', monospace;
+        font-size: 7.5px;
+        color: rgba(232, 238, 255, 0.28);
+        margin-top: 3px;
+      }
+
+      /* XLINKS */
+      .xconn {
+        fill: none;
+        stroke-linecap: round;
+        opacity: 0.22;
+        stroke-width: 1.5;
+        stroke-dasharray: 6 4;
+        animation: dash-travel 3s linear infinite;
+        transition:
+          opacity 0.3s,
+          stroke-width 0.3s;
+      }
+      .xconn.active {
+        opacity: 1;
+        stroke-width: 2.5;
+        animation: dash-travel 1s linear infinite;
+      }
+      .xconn.dimmed {
+        opacity: 0.04;
+      }
+      @keyframes dash-travel {
+        from {
+          stroke-dashoffset: 32;
+        }
+        to {
+          stroke-dashoffset: 0;
+        }
+      }
+      .xconn-label-bg {
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+      .xconn-label {
+        opacity: 0;
+        transition: opacity 0.3s;
+        font-family: 'DM Mono', monospace;
+        font-size: 8px;
+      }
+      .xconn-group:hover .xconn-label-bg,
+      .xconn-group.active .xconn-label-bg {
+        opacity: 1;
+      }
+      .xconn-group:hover .xconn-label,
+      .xconn-group.active .xconn-label {
+        opacity: 1;
+      }
+
+      /* PACKETS */
+      .pkt {
+        position: fixed;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 9999;
+        border: 2px solid rgba(255, 255, 255, 0.5);
+      }
+
+      /* FLOW TRAY */
+      .flow-tray {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 56px;
+        z-index: 200;
+        background: rgba(7, 10, 16, 0.97);
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        padding: 0 16px;
+      }
+      .f-chip {
+        font-family: 'DM Mono', monospace;
+        font-size: 7.5px;
+        letter-spacing: 0.07em;
+        padding: 5px 12px;
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 20px;
+        cursor: pointer;
+        color: rgba(255, 255, 255, 0.2);
+        transition: all 0.18s;
+        white-space: nowrap;
+      }
+      .f-chip:hover {
+        color: rgba(255, 255, 255, 0.6);
+        border-color: rgba(255, 255, 255, 0.18);
+      }
+      .f-chip.on {
+        box-shadow: 0 0 12px rgba(6, 255, 165, 0.15);
+      }
+
+      /* TETHER */
+      #pop-tether {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 499;
+        overflow: visible;
+      }
+
+      /* MANDATORY BLUR-FREE RENDERING */
+      .topbar,
+      .vp-toolbar {
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+      }
+      .popover {
+        backdrop-filter: blur(32px);
+        -webkit-backdrop-filter: blur(32px);
+      }
+      .flow-tray,
+      .legend,
+      #zoom-toast {
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+      }
+
+      /* POPOVER */
+      .popover {
+        position: fixed;
+        width: 364px;
+        background: rgba(9, 13, 22, 0.97);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 14px;
+        box-shadow:
+          0 24px 64px rgba(0, 0, 0, 0.85),
+          0 0 0 1px rgba(255, 255, 255, 0.03),
+          inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        z-index: 500;
+        animation: pop-in 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        overflow: hidden;
+      }
+      .popover.dragging {
+        animation: none;
+        box-shadow:
+          0 32px 80px rgba(0, 0, 0, 0.9),
+          0 0 0 1px rgba(255, 255, 255, 0.07),
+          inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        cursor: grabbing !important;
+      }
+      @keyframes pop-in {
+        from {
+          opacity: 0;
+          transform: scale(0.85) translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+      }
+      .pop-header {
+        position: relative;
+        cursor: grab;
+        padding-top: 18px;
+        user-select: none;
+      }
+      .pop-header:active {
+        cursor: grabbing;
+      }
+      .pop-drag-hint {
+        position: absolute;
+        top: 7px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 32px;
+        height: 3px;
+        border-radius: 2px;
+        background: rgba(255, 255, 255, 0.12);
+        pointer-events: none;
+        transition: background 0.2s;
+      }
+      .pop-header:hover .pop-drag-hint {
+        background: rgba(255, 255, 255, 0.22);
+      }
+      .pop-header-inner {
+        padding: 4px 14px 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .pop-ico {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .pop-nm {
+        font-size: 13.5px;
+        font-weight: 700;
+        color: #f0f4ff;
+        line-height: 1.2;
+      }
+      .pop-tp {
+        font-family: 'DM Mono', monospace;
+        font-size: 7.5px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        margin-top: 3px;
+        opacity: 0.42;
+      }
+      .pop-x {
+        margin-left: auto;
+        width: 26px;
+        height: 26px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: transparent;
+        color: rgba(255, 255, 255, 0.35);
+        cursor: pointer;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.18s;
+        flex-shrink: 0;
+      }
+      .pop-x:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: #f0f4ff;
+      }
+      .pop-tabs {
+        display: flex;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        padding: 0 6px;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+      .pop-tabs::-webkit-scrollbar {
+        display: none;
+      }
+      .pop-tab {
+        font-family: 'DM Mono', monospace;
+        font-size: 7.5px;
+        letter-spacing: 0.04em;
+        padding: 8px 8px;
+        cursor: pointer;
+        color: rgba(255, 255, 255, 0.24);
+        border-bottom: 2px solid transparent;
+        margin-bottom: -1px;
+        transition: all 0.18s;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .pop-tab:hover {
+        color: rgba(255, 255, 255, 0.6);
+      }
+      .pop-tab.on {
+        color: #f0f4ff;
+      }
+      .pop-body {
+        padding: 14px 15px 16px;
+        max-height: 280px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.5);
+        line-height: 1.8;
+      }
+      .pop-body b {
+        color: rgba(255, 255, 255, 0.75);
+      }
+      .conn-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 8px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.025);
+        margin-bottom: 3px;
+        font-size: 9px;
+      }
+      .conn-dir {
+        font-family: 'DM Mono', monospace;
+        font-size: 7px;
+        padding: 2px 5px;
+        border-radius: 3px;
+      }
+      .conn-proto {
+        font-family: 'DM Mono', monospace;
+        font-size: 7px;
+        color: rgba(255, 255, 255, 0.2);
+        margin-left: auto;
+        white-space: nowrap;
+      }
+      pre.docker-snippet {
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 10px;
+        font-family: 'DM Mono', monospace;
+        font-size: 8.5px;
+        color: rgba(255, 255, 255, 0.55);
+        overflow-x: auto;
+        white-space: pre;
+        margin-top: 8px;
+        line-height: 1.6;
+      }
+
+      /* TOOLBAR */
+      .vp-toolbar {
+        position: fixed;
+        bottom: 68px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 400;
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        background: rgba(9, 13, 26, 0.97);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        padding: 4px;
+        box-shadow:
+          0 8px 32px rgba(0, 0, 0, 0.6),
+          0 0 0 1px rgba(255, 255, 255, 0.03);
+        user-select: none;
+      }
+      .vp-sep {
+        width: 1px;
+        height: 22px;
+        background: rgba(255, 255, 255, 0.08);
+        margin: 0 3px;
+        flex-shrink: 0;
+      }
+      .vp-btn {
+        font-family: 'DM Mono', monospace;
+        font-size: 9px;
+        letter-spacing: 0.04em;
+        padding: 6px 10px;
+        border: none;
+        border-radius: 7px;
+        background: transparent;
+        color: rgba(255, 255, 255, 0.38);
+        cursor: pointer;
+        transition: all 0.15s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        min-width: 32px;
+        height: 30px;
+        white-space: nowrap;
+      }
+      .vp-btn:hover {
+        background: rgba(255, 255, 255, 0.07);
+        color: rgba(255, 255, 255, 0.85);
+      }
+      .vp-btn.active {
+        background: rgba(6, 255, 165, 0.14);
+        color: #06ffa5;
+        box-shadow: inset 0 0 0 1px rgba(6, 255, 165, 0.3);
+      }
+      .vp-btn.active.pan-mode {
+        background: rgba(167, 139, 250, 0.14);
+        color: #a78bfa;
+        box-shadow: inset 0 0 0 1px rgba(167, 139, 250, 0.3);
+      }
+      .vp-zoom-label {
+        font-family: 'DM Mono', monospace;
+        font-size: 9.5px;
+        color: rgba(255, 255, 255, 0.48);
+        min-width: 42px;
+        text-align: center;
+        cursor: pointer;
+        padding: 6px 4px;
+        border-radius: 5px;
+        transition: all 0.15s;
+      }
+      .vp-zoom-label:hover {
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(255, 255, 255, 0.85);
+      }
+
+      /* LEGEND */
+      .legend {
+        position: fixed;
+        bottom: 122px;
+        right: 16px;
+        z-index: 400;
+        background: rgba(9, 13, 22, 0.93);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+        padding: 10px 12px;
+        min-width: 175px;
+      }
+      .legend-title {
+        font-family: 'DM Mono', monospace;
+        font-size: 7.5px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.22);
+        margin-bottom: 8px;
+      }
+      .legend-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 4px;
+        font-size: 7.5px;
+        font-family: 'DM Mono', monospace;
+        color: rgba(255, 255, 255, 0.28);
+      }
+      .legend-line {
+        width: 26px;
+        height: 0;
+        border-top: 2px dashed;
+        opacity: 0.65;
+      }
+
+      /* ZOOM TOAST */
+      #zoom-toast {
+        position: fixed;
+        bottom: 118px;
+        left: 50%;
+        transform: translateX(-50%) translateY(6px);
+        background: rgba(9, 13, 26, 0.96);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 7px 14px;
+        font-family: 'DM Mono', monospace;
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.7);
+        z-index: 500;
+        pointer-events: none;
+        opacity: 0;
+        transition:
+          opacity 0.2s,
+          transform 0.2s;
+      }
+      #zoom-toast.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+
+      /* KBD HINTS */
+      .kbd-hint {
+        position: fixed;
+        bottom: 72px;
+        right: 16px;
+        z-index: 400;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        pointer-events: none;
+        opacity: 0;
+        animation: fade-hint 0.3s ease 0.8s both;
+      }
+      @keyframes fade-hint {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .kbd-row {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-family: 'DM Mono', monospace;
+        font-size: 8px;
+        color: rgba(255, 255, 255, 0.18);
+        white-space: nowrap;
+      }
+      .kbd {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-bottom-width: 2px;
+        border-radius: 3px;
+        padding: 1px 5px;
+        font-size: 8px;
+        color: rgba(255, 255, 255, 0.28);
+        min-width: 18px;
+        height: 16px;
+      }
+
+      /* LIGHT THEME */
+      body.light {
+        background: #f2f5fb;
+        color: #1a1f2e;
+      }
+      body.light .topbar {
+        background: rgba(242, 245, 251, 0.96);
+        border-bottom-color: rgba(0, 0, 0, 0.08);
+      }
+      body.light .brand-name {
+        color: #1a1f2e;
+      }
+      body.light .fnode-inner {
+        background: rgba(238, 242, 252, 0.94);
+        border-color: rgba(0, 0, 0, 0.08);
+      }
+      body.light .fnode-name {
+        color: #1a1f2e;
+      }
+      body.light .fnode-type {
+        color: rgba(26, 31, 46, 0.38);
+      }
+      body.light .popover {
+        background: rgba(247, 250, 255, 0.98);
+        border-color: rgba(0, 0, 0, 0.1);
+      }
+      body.light .pop-nm {
+        color: #1a1f2e;
+      }
+      body.light .pop-body {
+        color: rgba(26, 31, 46, 0.55);
+      }
+      body.light .pop-body b {
+        color: rgba(26, 31, 46, 0.8);
+      }
+      body.light .flow-tray {
+        background: rgba(242, 245, 251, 0.97);
+        border-top-color: rgba(0, 0, 0, 0.08);
+      }
+      body.light .vp-toolbar {
+        background: rgba(242, 245, 251, 0.98);
+        border-color: rgba(0, 0, 0, 0.1);
+      }
+      body.light .legend {
+        background: rgba(242, 245, 251, 0.96);
+        border-color: rgba(0, 0, 0, 0.1);
+      }
+      body.light .swimlane {
+        border-color: rgba(0, 0, 0, 0.06);
+      }
+      body.light #zoom-toast {
+        background: rgba(242, 245, 251, 0.98);
+        border-color: rgba(0, 0, 0, 0.1);
+        color: #1a1f2e;
+      }
+      body.light pre.docker-snippet {
+        background: rgba(0, 0, 0, 0.06);
+        border-color: rgba(0, 0, 0, 0.1);
+        color: rgba(26, 31, 46, 0.6);
+      }
+
+      /* MOBILE */
+      @media (pointer: coarse) {
+        .fnode-inner {
+          padding: 13px 11px 11px;
+          min-width: 100px;
+        }
+        .fnode-name {
+          font-size: 11.5px;
+        }
+        .vp-btn {
+          min-width: 44px;
+          height: 44px;
+          padding: 0 12px;
+        }
+        .vp-zoom-label {
+          min-width: 52px;
+          height: 44px;
+          line-height: 44px;
+          font-size: 11px;
+          padding: 0 6px;
+        }
+        .ctrl-btn {
+          padding: 9px 10px;
+          font-size: 8px;
+        }
+        .f-chip {
+          padding: 8px 13px;
+          font-size: 9px;
+        }
+      }
+      @media (max-width: 600px) {
+        .topbar {
+          padding: 0 10px;
+        }
+        .brand-sub {
+          display: none;
+        }
+        .ctrl-theme {
+          display: none;
+        }
+        #stage {
+          inset: 48px 0 52px 0;
+        }
+        .popover {
+          width: calc(100vw - 16px) !important;
+          max-width: 420px;
+          left: 8px !important;
+          bottom: 60px !important;
+          top: auto !important;
+          border-radius: 16px 16px 12px 12px;
+          max-height: 55vh;
+          display: flex;
+          flex-direction: column;
+        }
+        .pop-body {
+          max-height: none;
+          flex: 1;
+        }
+        .flow-tray {
+          justify-content: flex-start;
+          overflow-x: auto;
+          scrollbar-width: none;
+          padding: 0 10px;
+        }
+        .flow-tray::-webkit-scrollbar {
+          display: none;
+        }
+        .legend {
+          display: none;
+        }
+      }
+      #touch-hint {
+        position: fixed;
+        bottom: 72px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(9, 13, 26, 0.92);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        padding: 6px 16px;
+        font-family: 'DM Mono', monospace;
+        font-size: 9px;
+        color: rgba(255, 255, 255, 0.38);
+        letter-spacing: 0.08em;
+        pointer-events: none;
+        z-index: 450;
+        opacity: 0;
+        transition: opacity 0.4s;
+        white-space: nowrap;
+      }
+      #touch-hint.show {
+        opacity: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="brand">
+        <div class="brand-pill">
+          <div class="brand-dot"></div>
+          <span class="brand-name">SiaHost Agent</span>
+          <span class="brand-ver">v1.0</span>
+        </div>
+        <span class="brand-sub"
+          >LOCAL-FIRST AGENTIC AUTOMATION · 9 LAYERS · 19 NODES · SIA
+          NETWORK</span
+        >
+      </div>
+      <div class="topbar-right">
+        <button class="ctrl-btn ctrl-theme" onclick="toggleTheme()">🌙</button>
+        <button class="ctrl-btn" onclick="resetAll()">↺ Reset</button>
+        <button class="ctrl-btn ctrl-play" id="play-btn" onclick="togglePlay()">
+          ▶ Play Flow
+        </button>
+      </div>
+    </div>
+
+    <!-- STAGE -->
+    <div id="stage" class="mode-select">
+      <div id="canvas-root">
+        <div id="scroll-area">
+          <svg id="xlink-svg"></svg>
+          <!-- SWIMLANES WILL BE INJECTED HERE -->
+        </div>
+      </div>
+    </div>
+
+    <div id="touch-hint">
+      1 finger: pan · 2 fingers: pinch to zoom · tap: inspect
+    </div>
+
+    <!-- TETHER SVG -->
+    <svg id="pop-tether"></svg>
+
+    <!-- TOOLBAR -->
+    <div class="vp-toolbar" id="vp-toolbar">
+      <button
+        class="vp-btn active"
+        id="btn-select"
+        onclick="setMode('select')"
+        title="Select (V)"
+      >
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M2 1l12 8-6.5 1.5L5 14z" />
+        </svg>
+        <span style="font-size: 8px">V</span>
+      </button>
+      <button
+        class="vp-btn"
+        id="btn-pan"
+        onclick="setMode('pan')"
+        title="Pan (H)"
+      >
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        >
+          <path d="M18 11V7a2 2 0 0 0-4 0v4" />
+          <path d="M14 10V5a2 2 0 0 0-4 0v5" />
+          <path
+            d="M10 10.5V8a2 2 0 0 0-4 0v8a6 6 0 0 0 6 6h2a6 6 0 0 0 6-6v-3a2 2 0 0 0-4 0"
+          />
+        </svg>
+        <span style="font-size: 8px">H</span>
+      </button>
+      <div class="vp-sep"></div>
+      <button class="vp-btn" onclick="zoomStep(-1)" title="Zoom out (-)">
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+        >
+          <circle cx="7" cy="7" r="5" />
+          <line x1="10.5" y1="10.5" x2="14" y2="14" />
+          <line x1="4.5" y1="7" x2="9.5" y2="7" />
+        </svg>
+      </button>
+      <div
+        class="vp-zoom-label"
+        id="zoom-label"
+        onclick="zoomToFit()"
+        title="Fit · Dbl:100%"
+      >
+        100%
+      </div>
+      <button class="vp-btn" onclick="zoomStep(1)" title="Zoom in (+)">
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+        >
+          <circle cx="7" cy="7" r="5" />
+          <line x1="10.5" y1="10.5" x2="14" y2="14" />
+          <line x1="7" y1="4.5" x2="7" y2="9.5" />
+          <line x1="4.5" y1="7" x2="9.5" y2="7" />
+        </svg>
+      </button>
+      <div class="vp-sep"></div>
+      <button class="vp-btn" onclick="zoomToFit()" title="Fit screen">
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+        >
+          <polyline points="1,5 1,1 5,1" />
+          <polyline points="11,1 15,1 15,5" />
+          <polyline points="15,11 15,15 11,15" />
+          <polyline points="5,15 1,15 1,11" />
+        </svg>
+      </button>
+      <button class="vp-btn" onclick="zoomTo100()" title="Reset 100%">
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+        >
+          <rect x="2" y="2" width="12" height="12" rx="2" />
+          <line x1="8" y1="5" x2="8" y2="11" />
+          <line x1="5" y1="8" x2="11" y2="8" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- FLOW TRAY -->
+    <div class="flow-tray" id="flow-tray"></div>
+
+    <!-- LEGEND -->
+    <div class="legend">
+      <div class="legend-title">Layers</div>
+      <div id="legend-rows"></div>
+    </div>
+
+    <!-- ZOOM TOAST -->
+    <div id="zoom-toast"></div>
+
+    <!-- KBD HINTS -->
+    <div class="kbd-hint">
+      <div class="kbd-row">
+        <span class="kbd">V</span> select &nbsp;<span class="kbd">H</span> pan
+      </div>
+      <div class="kbd-row">
+        <span class="kbd">scroll</span> zoom &nbsp;<span class="kbd"
+          >space</span
+        >
+        fit
+      </div>
+    </div>
+
+    <script>
+      // ═══════════════════════════════════════════════
+      // TOP-LEVEL VIEWPORT STATE
+      // ═══════════════════════════════════════════════
+      let vpScale = 1,
+        vpX = 0,
+        vpY = 0,
+        curMode = 'select',
+        isPanning = false
+      let panStartX, panStartY, panOriginX, panOriginY
+      let lastDist = null,
+        lastMid = null
+      const MIN_SCALE = 0.15,
+        MAX_SCALE = 4
+      const ZOOM_STEPS = [
+        0.15, 0.25, 0.33, 0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2,
+        2.5, 3, 4,
+      ]
+      const IS_TOUCH = matchMedia('(pointer:coarse)').matches
+
+      // ═══════════════════════════════════════════════
+      // FLOW COLORS — exactly 9, indexed by layer
+      // ═══════════════════════════════════════════════
+      const FLOW_COLORS = [
+        '#00d4ff',
+        '#a78bfa',
+        '#06ffa5',
+        '#f5c842',
+        '#00e5a0',
+        '#fb923c',
+        '#f472b6',
+        '#ffd166',
+        '#38bdf8',
+      ]
+
+      // ═══════════════════════════════════════════════
+      // LAYERS
+      // ═══════════════════════════════════════════════
+      const LAYERS = [
+        { id: 'L01', name: 'DATA & INGESTION', color: '#00d4ff' },
+        { id: 'L02', name: 'AI & INTELLIGENCE', color: '#a78bfa' },
+        { id: 'L03', name: 'WORKFLOW & AUTOMATION', color: '#06ffa5' },
+        { id: 'L04', name: 'BLOCKCHAIN & TRUST', color: '#f5c842' },
+        { id: 'L05', name: 'BACKEND / API', color: '#00e5a0' },
+        { id: 'L06', name: 'INTERFACE & UX', color: '#fb923c' },
+        { id: 'L07', name: 'INFRA & DEPLOYMENT', color: '#f472b6' },
+        { id: 'L08', name: 'DATABASE & PERSISTENCE', color: '#ffd166' },
+        { id: 'L09', name: 'OBSERVABILITY', color: '#38bdf8' },
+      ]
+
+      // ═══════════════════════════════════════════════
+      // NODE DATA
+      // ═══════════════════════════════════════════════
+      const ND = {
+        indexd_insights: {
+          name: 'indexd Insights Service',
+          type: 'DATA INGESTION',
+          layer: 'L01',
+          badge: 1,
+          conns: [
+            {
+              d: 'out',
+              to: 'Event-Driven Agent Core',
+              p: 'Network scoring events',
+            },
+            {
+              d: 'out',
+              to: 'Pricing & Collateral Optimizer',
+              p: 'Demand signals',
+            },
+            {
+              d: 'in',
+              to: 'Sia Network Signals Adapter',
+              p: 'Raw indexd feed',
+            },
+          ],
+          summary:
+            'Connects to the Sia indexd service to pull network-wide host scoring, demand signals, and competitive pricing data for the local agent to consume.',
+          does: 'Polls the official Sia indexd REST API at configurable intervals (default 60s) to retrieve network-wide host performance rankings, storage demand heatmaps, and pricing benchmarks. Data is normalised into a typed event schema and emitted onto the internal event bus. Provides context that an isolated hostd instance cannot see on its own.',
+          provides: `Network intelligence that allows a single Sia host to understand its relative competitive position. Without indexd, a host is flying blind — unable to know if its pricing is too high or too low versus the market.<pre class="docker-snippet">indexd-insights:
+  image: siahost-agent:latest
+  command: ["indexd-worker"]
+  environment:
+    - INDEXD_URL=https://api.sia.tech/indexd
+    - POLL_INTERVAL=60s
+  depends_on: [postgres]</pre>`,
+          passes:
+            'Normalised SiaNetwork demand-and-scoring events forwarded to <b>Event-Driven Agent Core</b> and <b>Pricing & Collateral Optimizer</b> via the internal Redis event bus.',
+        },
+        metrics_collector: {
+          name: 'Metrics & Webhook Collector',
+          type: 'DATA INGESTION',
+          layer: 'L01',
+          badge: 2,
+          conns: [
+            {
+              d: 'in',
+              to: 'hostd Integration Service',
+              p: 'Webhook push (hostd native)',
+            },
+            {
+              d: 'out',
+              to: 'Local Persistence Store',
+              p: 'Time-series metrics write',
+            },
+            {
+              d: 'out',
+              to: 'Event-Driven Agent Core',
+              p: 'State change events',
+            },
+          ],
+          summary:
+            'Receives real-time metrics and webhook notifications from the local hostd process — storage utilisation, active contracts, revenue, and uptime events — and feeds them to the agent.',
+          does: 'Exposes an HTTP webhook endpoint that hostd pushes to on every significant event (contract formed, storage freed, alert triggered). Also pulls periodic snapshots via the hostd REST API for metrics that are not push-emitted. All data is timestamped, validated via Pydantic v2, and persisted to TimescaleDB for trend analysis.',
+          provides: `Zero-polling real-time visibility of the host's operational state. The push-webhook model means the agent reacts to hostd events in &lt;1s rather than waiting for a poll cycle.<pre class="docker-snippet">metrics-collector:
+  image: siahost-agent:latest
+  command: ["metrics-worker"]
+  ports: ["8081:8081"]
+  environment:
+    - HOSTD_WEBHOOK_SECRET=\${SECRET}
+    - TIMESCALE_URL=\${DB_URL}
+  depends_on: [postgres]</pre>`,
+          passes:
+            'Raw host metrics written to <b>Local Persistence Store</b>; significant state-change events emitted to <b>Event-Driven Agent Core</b> for agentic reaction.',
+        },
+
+        // L02 — AI & INTELLIGENCE
+        agent_core: {
+          name: 'Event-Driven Agent Core',
+          type: 'AI AGENT',
+          layer: 'L02',
+          badge: 3,
+          conns: [
+            {
+              d: 'in',
+              to: 'Metrics & Webhook Collector',
+              p: 'State change events',
+            },
+            { d: 'in', to: 'indexd Insights Service', p: 'Network signals' },
+            {
+              d: 'out',
+              to: 'Pricing & Collateral Optimizer',
+              p: 'Optimization trigger',
+            },
+            { d: 'out', to: 'Event Orchestrator', p: 'Workflow dispatch' },
+          ],
+          summary:
+            'The central autonomous brain — a LangGraph agent powered by Claude Sonnet 4.6 that continuously monitors host state, detects optimization opportunities, and dispatches targeted workflows.',
+          does: 'Built on LangGraph with Claude Sonnet 4.6 as the reasoning core. Subscribes to all host and network events via Redis Streams. On each event, the agent assembles a context window (current host metrics, recent history from Qdrant, competitor scores from indexd) and reasons about required actions. Bound MCP tools: <b>hostd-mcp-server</b> (read host state), <b>indexd-mcp-server</b> (query network data). All inference steps traced via LangSmith.',
+          provides: `Autonomous reaction to host state without human intervention. The LangGraph architecture ensures deterministic tool calling and safe rollback on failures. LangSmith traces every decision for audit.<pre class="docker-snippet">agent-core:
+  image: siahost-agent:latest
+  command: ["agent-worker"]
+  environment:
+    - ANTHROPIC_API_KEY=\${ANTHROPIC_KEY}
+    - REDIS_URL=redis://redis:6379
+    - LANGSMITH_API_KEY=\${LS_KEY}
+  depends_on: [redis, qdrant]</pre>`,
+          passes:
+            'Optimization trigger signals dispatched to <b>Pricing & Collateral Optimizer</b>; complex multi-step workflows enqueued via <b>Event Orchestrator</b>.',
+          mcpPackage: '@siahost/mcp-server-hostd',
+          exposedTools: [
+            'get_host_metrics',
+            'update_host_settings',
+            'list_contracts',
+            'get_network_score',
+          ],
+          boundAgents: [
+            'Event-Driven Agent Core',
+            'Pricing & Collateral Optimizer',
+          ],
+          securityScope: 'read-write',
+        },
+        pricing_optimizer: {
+          name: 'Pricing & Collateral Optimizer',
+          type: 'AI AGENT',
+          layer: 'L02',
+          badge: 4,
+          conns: [
+            {
+              d: 'in',
+              to: 'Event-Driven Agent Core',
+              p: 'Optimization trigger',
+            },
+            {
+              d: 'in',
+              to: 'indexd Insights Service',
+              p: 'Market pricing data',
+            },
+            { d: 'out', to: 'Configuration Applier', p: 'New pricing params' },
+            {
+              d: 'out',
+              to: 'Contract Health Analyzer',
+              p: 'Collateral advice',
+            },
+          ],
+          summary:
+            'Dynamically calculates optimal storage pricing and collateral ratios using market signals from indexd, host performance history, and Claude Sonnet 4.6 reasoning.',
+          does: 'A specialised LangGraph sub-agent invoked by the core agent. Uses Qdrant to retrieve historical pricing effectiveness data, queries indexd for current competitor rates, and applies a multi-objective optimisation: maximise revenue-per-TB while maintaining competitive ranking. Outputs a validated pricing config object. Bound MCP tool: <b>hostd-mcp-server</b> for safe config preview before apply.',
+          provides: `Evidence-based pricing that adapts to market conditions daily rather than requiring manual tuning. A host using static pricing either loses contracts (too expensive) or leaves revenue on the table (too cheap).<pre class="docker-snippet">pricing-optimizer:
+  image: siahost-agent:latest
+  command: ["pricing-worker"]
+  environment:
+    - QDRANT_URL=http://qdrant:6333
+    - HOSTD_API=http://hostd:9980
+  depends_on: [qdrant, agent-core]</pre>`,
+          passes:
+            'New pricing configuration sent to <b>Configuration Applier</b> for safe, audited apply to hostd. Collateral strategy recommendations forwarded to <b>Contract Health Analyzer</b>.',
+        },
+        scaling_advisor: {
+          name: 'Scaling Advisor',
+          type: 'AI AGENT',
+          layer: 'L02',
+          badge: 5,
+          conns: [
+            {
+              d: 'in',
+              to: 'Local Persistence Store',
+              p: 'Historical utilisation trends',
+            },
+            {
+              d: 'in',
+              to: 'Sia Network Signals Adapter',
+              p: 'Network demand forecast',
+            },
+            {
+              d: 'out',
+              to: 'Alert & Notification System',
+              p: 'Hardware upgrade recommendations',
+            },
+            {
+              d: 'out',
+              to: 'Impact & Reporting Service',
+              p: 'Growth projections',
+            },
+          ],
+          summary:
+            'Analyses storage utilisation trends and Sia network demand forecasts to generate hardware scaling recommendations before capacity becomes a bottleneck.',
+          does: 'Runs a scheduled LangGraph workflow (weekly) that ingests 90-day utilisation history from TimescaleDB, network demand signals from indexd, and current hardware specs. Claude Sonnet 4.6 reasons over this data to produce prioritised scaling recommendations: "Add 4TB by Day 60" or "Current capacity adequate for 120 days." Confidence intervals are calculated and attached.',
+          provides: `Proactive hardware planning that prevents revenue loss from full-storage rejection of new contracts. Operators know months in advance when to purchase new drives, smoothing capital expenditure.<pre class="docker-snippet">scaling-advisor:
+  image: siahost-agent:latest
+  command: ["scaling-worker"]
+  environment:
+    - SCHEDULE=0 9 * * MON
+    - DB_URL=\${TIMESCALE_URL}
+  depends_on: [postgres, agent-core]</pre>`,
+          passes:
+            'Scaling recommendations pushed to <b>Alert & Notification System</b> as actionable notifications. Growth projections forwarded to <b>Impact & Reporting Service</b> for quarterly reports.',
+        },
+
+        // L03 — WORKFLOW & AUTOMATION
+        event_orchestrator: {
+          name: 'Event Orchestrator',
+          type: 'WORKFLOW ENGINE',
+          layer: 'L03',
+          badge: 6,
+          conns: [
+            { d: 'in', to: 'Event-Driven Agent Core', p: 'Workflow dispatch' },
+            { d: 'out', to: 'Configuration Applier', p: 'schedules activity' },
+            { d: 'out', to: 'Recommendation Engine', p: 'triggers workflow' },
+            {
+              d: 'out',
+              to: 'hostd Integration Service',
+              p: 'dispatches activity',
+            },
+          ],
+          summary:
+            'Temporal.io-powered durable workflow engine that orchestrates multi-step optimization sequences with automatic retry, saga patterns, and exactly-once execution guarantees.',
+          does: 'Hosts Temporal workflows for each optimization type: PricingUpdateWorkflow, CollateralAdjustWorkflow, OnboardingWorkflow. Each workflow is defined as a series of retryable activities: fetch → validate → preview → apply → verify. If any activity fails (network timeout, hostd rejection), Temporal replays from the last successful checkpoint. The n8n CE layer wraps external webhook triggers (cron jobs, external alerts) into Temporal workflow starts.',
+          provides: `Zero-lost-update guarantees — if the VPS reboots mid-optimization, Temporal replays from history. This is critical for financial operations like collateral adjustments where partial execution is dangerous.<pre class="docker-snippet">temporal-server:
+  image: temporalio/server:latest
+  ports: ["7233:7233"]
+  depends_on: [postgres]
+temporal-worker:
+  image: siahost-agent:latest
+  command: ["temporal-worker"]
+  environment:
+    - TEMPORAL_ADDRESS=temporal-server:7233</pre>`,
+          passes:
+            'Scheduled activities dispatched to <b>Configuration Applier</b> and <b>hostd Integration Service</b>. Workflow completion events forwarded to <b>Recommendation Engine</b>.',
+        },
+        recommendation_engine: {
+          name: 'Recommendation Engine',
+          type: 'AUTOMATION',
+          layer: 'L03',
+          badge: 7,
+          conns: [
+            { d: 'in', to: 'Event Orchestrator', p: 'triggers workflow' },
+            {
+              d: 'in',
+              to: 'Uptime Monitoring & Risk Detector',
+              p: 'Risk signals',
+            },
+            {
+              d: 'out',
+              to: 'Alert & Notification System',
+              p: 'Actionable recommendations',
+            },
+            { d: 'out', to: 'Unified Dashboard', p: 'Dashboard suggestions' },
+          ],
+          summary:
+            'Generates prioritised, actionable operator recommendations from agent analysis results, workflow outcomes, and risk signals — packaged for human review.',
+          does: 'An n8n CE workflow node that aggregates outputs from completed Temporal workflows, uptime risk signals, and LLM analysis results. Uses a scoring model to prioritise recommendations by expected revenue impact. Each recommendation includes: what to do, why now, expected outcome, and a one-click confirm button wired to the Event Orchestrator. Cron trigger: every 4 hours.',
+          provides: `Operators who don\'t want to read raw metrics get a curated action list sorted by impact. Non-technical hosts can run a high-performing node by approving recommendations without understanding the underlying mechanics.<pre class="docker-snippet">n8n:
+  image: n8nio/n8n:latest
+  ports: ["5678:5678"]
+  environment:
+    - N8N_BASIC_AUTH_ACTIVE=true
+    - DB_TYPE=postgresdb
+    - DB_POSTGRESDB_HOST=postgres
+  volumes: [n8n_data:/home/node/.n8n]</pre>`,
+          passes:
+            'Ranked recommendations delivered to <b>Alert & Notification System</b> for operator notification and to the <b>Unified Dashboard</b> for in-app display.',
+        },
+
+        // L04 — BLOCKCHAIN & TRUST
+        sia_blockchain: {
+          name: 'Sia Blockchain',
+          type: 'BLOCKCHAIN NETWORK',
+          layer: 'L04',
+          badge: 8,
+          conns: [
+            {
+              d: 'out',
+              to: 'indexd Insights Service',
+              p: 'Network scoring & demand data',
+            },
+            {
+              d: 'out',
+              to: 'Metrics & Webhook Collector',
+              p: 'Storage proof events',
+            },
+            {
+              d: 'in',
+              to: 'hostd Integration Service',
+              p: 'hostd submits proofs natively',
+            },
+          ],
+          summary:
+            'The Sia blockchain itself — the decentralised trust layer that enforces storage contracts, proof-of-storage obligations, and collateral slashing automatically at the protocol level. No EVM, no custom contracts.',
+          does: "Sia uses a custom Proof-of-Work consensus (Blake2b) where storage contracts, proof windows, and collateral are <b>first-class protocol primitives</b> — not smart contracts written by developers. The host's local hostd daemon manages all on-chain obligations autonomously: submitting storage proofs each window (~144 blocks, ~24 hrs), locking and releasing collateral, and forming contracts with renters via the Sia renter-host protocol. Average transaction fee: ~0.001 SC. Block time: ~10 minutes. Finality: ~6 blocks (~1 hour). Block explorer: https://explore.sia.tech. Chain: Sia Mainnet (v1/v2 hardfork aware). No developer-written smart contracts exist — the agent only reads outcomes and optimises inputs upstream.",
+          provides: `The foundational trust guarantee of the entire system. Because contracts and proof obligations are enforced at the protocol level, neither host nor renter needs to trust each other. hostd handles all proof submission automatically — the agent monitors outcomes and optimises upstream inputs (pricing, collateral ratio) that affect contract formation before they hit the chain.<pre class="docker-snippet"># hostd IS the blockchain client — run directly:
+hostd:
+  image: ghcr.io/siafoundation/hostd:latest
+  ports: ["9980:9980","9981:9981","9982:9982"]
+  volumes: [hostd_data:/data]
+  environment:
+    - HOSTD_API_PASSWORD=\${HOSTD_PASS}
+  restart: always</pre>`,
+          passes:
+            'Storage proof results and contract state emitted to <b>Metrics & Webhook Collector</b> via hostd webhooks. Network-wide scoring and demand data published to <b>indexd Insights Service</b> via the public indexd API.',
+        },
+
+        // L05 — BACKEND / API
+        hostd_integration: {
+          name: 'hostd Integration Service',
+          type: 'BACKEND SERVICE',
+          layer: 'L05',
+          badge: 10,
+          conns: [
+            {
+              d: 'out',
+              to: 'Metrics & Webhook Collector',
+              p: 'Webhook push (hostd native)',
+            },
+            { d: 'in', to: 'Event Orchestrator', p: 'dispatches activity' },
+            {
+              d: 'out',
+              to: 'Contract Health Analyzer',
+              p: 'Active contract list',
+            },
+            {
+              d: 'out',
+              to: 'Sia Blockchain',
+              p: 'hostd submits proofs on-chain',
+            },
+          ],
+          summary:
+            'The primary FastAPI service that wraps the official Sia Go SDK and hostd REST API — providing a unified, authenticated interface for all agent interactions with the local hostd process.',
+          does: 'Built with FastAPI 0.115 + Python 3.12, this service exposes typed endpoints for every hostd operation the agent needs: GET /metrics, POST /settings, GET /contracts, GET /wallet. Uses Pydantic v2 models for request/response validation. SQLAlchemy 2.0 with Alembic manages the settings-history schema. Implements write-ahead logging for all hostd mutations — every change is recorded before execution, enabling rollback.',
+          provides: `A safe, audited gateway to hostd. Direct un-audited calls to hostd from multiple agent workers would risk race conditions and unaudited mutations. This service serialises all writes and maintains a full change log.<pre class="docker-snippet">hostd-integration:
+  image: siahost-agent:latest
+  command: ["uvicorn","app.main:app","--host","0.0.0.0","--port","8000"]
+  ports: ["8000:8000"]
+  environment:
+    - HOSTD_API=http://hostd:9980
+    - DATABASE_URL=\${DB_URL}</pre>`,
+          passes:
+            'hostd webhook events forwarded to <b>Metrics & Webhook Collector</b>. Contract data served to <b>Contract Health Analyzer</b>. Proof submissions and contract state flows to <b>Sia Blockchain</b> automatically via hostd.',
+        },
+        config_applier: {
+          name: 'Configuration Applier',
+          type: 'BACKEND SERVICE',
+          layer: 'L05',
+          badge: 11,
+          conns: [
+            {
+              d: 'in',
+              to: 'Pricing & Collateral Optimizer',
+              p: 'New pricing params',
+            },
+            { d: 'in', to: 'Event Orchestrator', p: 'schedules activity' },
+            { d: 'out', to: 'Local Persistence Store', p: 'Audit log write' },
+            {
+              d: 'out',
+              to: 'Alert & Notification System',
+              p: 'Change confirmation',
+            },
+          ],
+          summary:
+            'A conservative, write-audited FastAPI endpoint that applies validated configuration changes to hostd — with dry-run preview, rollback capability, and full audit logging.',
+          does: 'Every configuration update (pricing, collateral, bandwidth limits) flows through this service. Implements a three-phase apply: (1) dry-run simulation against current hostd state, (2) operator approval gate (auto-approved if confidence >0.9, manual otherwise), (3) atomic write to hostd with immediate verification. All changes written to the audit log in PostgreSQL before and after execution. Rollback available for 24 hours.',
+          provides: `Operator trust in the autonomous agent. Knowing that every change is previewed, logged, and reversible is what allows non-technical operators to trust the system with their live host.<pre class="docker-snippet">config-applier:
+  image: siahost-agent:latest
+  command: ["uvicorn","app.config:app","--host","0.0.0.0","--port","8001"]
+  environment:
+    - HOSTD_API=http://hostd:9980
+    - AUDIT_DB=\${DB_URL}
+    - AUTO_APPROVE_THRESHOLD=0.9</pre>`,
+          passes:
+            'Applied change records written to <b>Local Persistence Store</b> as auditable history. Change confirmation notifications pushed to <b>Alert & Notification System</b>.',
+        },
+
+        // L06 — INTERFACE & UX
+        onboarding_wizard: {
+          name: 'Guided Onboarding Wizard',
+          type: 'INTERFACE',
+          layer: 'L06',
+          badge: 12,
+          conns: [
+            {
+              d: 'out',
+              to: 'hostd Integration Service',
+              p: 'Initial config setup',
+            },
+            { d: 'out', to: 'Configuration Applier', p: 'First-run settings' },
+            { d: 'in', to: 'Sia Blockchain', p: 'Network defaults via indexd' },
+          ],
+          summary:
+            'A step-by-step Next.js wizard that guides non-technical Sia hosts through first-run setup — connecting to hostd, configuring initial pricing with network-intelligent defaults, and validating the connection.',
+          does: 'Built with Next.js 16 App Router + shadcn/ui. Presents a 6-step wizard: (1) hostd connection test, (2) wallet sync check, (3) storage path configuration, (4) pricing setup with indexd-powered market comparison, (5) collateral ratio setup, (6) launch confirmation. Each step calls the <b>hostd Integration Service</b> to validate state before proceeding. Pulls network-average pricing from <b>Sia Network Signals Adapter</b> to suggest sensible defaults.',
+          provides: `The single biggest barrier to Sia network growth is setup complexity. This wizard makes it possible for a non-developer to operate a competitive Sia host in under 20 minutes, dramatically expanding the potential operator pool.<pre class="docker-snippet">frontend:
+  image: siahost-agent-ui:latest
+  ports: ["3000:3000"]
+  environment:
+    - NEXT_PUBLIC_API_URL=http://api:8000
+    - NEXT_PUBLIC_INDEXD_URL=https://api.sia.tech</pre>`,
+          passes:
+            'Initial configuration parameters submitted to <b>hostd Integration Service</b> and <b>Configuration Applier</b> to bootstrap the host with validated first-run settings.',
+        },
+        unified_dashboard: {
+          name: 'Unified Privacy-First Dashboard',
+          type: 'INTERFACE',
+          layer: 'L06',
+          badge: 13,
+          conns: [
+            {
+              d: 'in',
+              to: 'Recommendation Engine',
+              p: 'Dashboard suggestions',
+            },
+            {
+              d: 'in',
+              to: 'Metrics & Webhook Collector',
+              p: 'Live metrics stream',
+            },
+            {
+              d: 'in',
+              to: 'Impact & Reporting Service',
+              p: 'Quarterly report data',
+            },
+            {
+              d: 'out',
+              to: 'Event Orchestrator',
+              p: 'Manual workflow trigger',
+            },
+          ],
+          summary:
+            'Real-time Next.js dashboard showing storage utilisation, revenue, active contracts, health scores, agent recommendations, and quarterly Sia network contribution metrics — all data stays local.',
+          does: 'Next.js 16 App Router with TanStack Query for real-time polling (500ms intervals on critical metrics, 10s on secondary). Recharts for revenue and utilisation graphs. Zustand for global state. The dashboard never phones home — all data comes from the local <b>hostd Integration Service</b> and <b>Local Persistence Store</b>. Operators can approve pending recommendations directly from the dashboard, triggering the <b>Event Orchestrator</b>.',
+          provides: `Complete operational visibility without sacrificing privacy. Unlike cloud-based Sia management tools, zero host data leaves the operator\'s machine. This is a fundamental design principle: the agent is local-first.<pre class="docker-snippet">frontend:
+  image: siahost-agent-ui:latest
+  ports: ["3000:3000"]
+  environment:
+    - NEXT_PUBLIC_API_URL=http://api:8000
+    - NEXT_PUBLIC_LOCAL_ONLY=true</pre>`,
+          passes:
+            'Operator action confirmations dispatched to <b>Event Orchestrator</b> to trigger approved workflows. Dashboard state refreshed via TanStack Query from local API.',
+        },
+
+        // L07 — INFRA & DEPLOYMENT
+        self_hosting_manager: {
+          name: 'Self-Hosting Manager',
+          type: 'INFRA',
+          layer: 'L07',
+          badge: 14,
+          conns: [
+            {
+              d: 'out',
+              to: 'Uptime Monitoring & Risk Detector',
+              p: 'Container health signals',
+            },
+            {
+              d: 'out',
+              to: 'Alert & Notification System',
+              p: 'Deployment alerts',
+            },
+            {
+              d: 'in',
+              to: 'Security & Privacy Guard',
+              p: 'Security scan results',
+            },
+          ],
+          summary:
+            'Docker Compose-based lifecycle manager for all SiaHost Agent services — with Watchtower for automatic updates, Portainer CE for UI management, and Traefik for TLS termination.',
+          does: "The entire SiaHost Agent stack is defined in a single docker-compose.yml with Traefik as the reverse proxy (automatic Let's Encrypt TLS), Portainer CE for non-technical Docker management, and Watchtower for automated image updates. Health checks on every service. Restart policies: always. Log rotation configured to prevent disk exhaustion. Hetzner/DigitalOcean VPS target.",
+          provides: `The operator never needs to understand Docker internals. Portainer provides a point-and-click interface for container management. Watchtower ensures the agent is always running the latest secure version automatically.<pre class="docker-snippet">traefik:
+  image: traefik:v3
+  command: ["--providers.docker","--entrypoints.web.address=:80","--entrypoints.websecure.address=:443","--certificatesresolvers.le.acme.email=\${EMAIL}"]
+  ports: ["80:80","443:443"]
+  volumes: ["/var/run/docker.sock:/var/run/docker.sock"]</pre>`,
+          passes:
+            'Container health signals forwarded to <b>Uptime Monitoring & Risk Detector</b>. Deployment event alerts sent to <b>Alert & Notification System</b>.',
+        },
+
+        // L08 — DATABASE & PERSISTENCE
+        local_persistence: {
+          name: 'Local Persistence Store',
+          type: 'DATABASE',
+          layer: 'L08',
+          badge: 15,
+          conns: [
+            {
+              d: 'in',
+              to: 'Metrics & Webhook Collector',
+              p: 'Time-series metrics write',
+            },
+            { d: 'in', to: 'Configuration Applier', p: 'Audit log write' },
+            {
+              d: 'out',
+              to: 'Pricing & Collateral Optimizer',
+              p: 'Historical pricing effectiveness',
+            },
+            {
+              d: 'out',
+              to: 'Scaling Advisor',
+              p: 'Historical utilisation trends',
+            },
+          ],
+          summary:
+            'PostgreSQL 17 with pgvector + TimescaleDB extensions for time-series metrics, Qdrant for vector embeddings, and pgBouncer for connection pooling — all running locally.',
+          does: "PostgreSQL 17 with pgvector (for embedding storage), TimescaleDB (for automated time-series partitioning of metrics), and pg_partman (for partition management). Qdrant runs separately for the vector similarity search used by LangGraph agents. pgBouncer in transaction-pooling mode. Alembic handles schema migrations. All data written to the local VPS — nothing leaves the operator's infrastructure.",
+          provides: `A high-performance, self-contained persistence layer that supports both relational queries (contract history, audit logs) and vector search (agent memory, pattern matching). The TimescaleDB extension compresses old metrics automatically, preventing unbounded disk growth.<pre class="docker-snippet">postgres:
+  image: timescale/timescaledb-ha:pg17
+  environment:
+    - POSTGRES_PASSWORD=\${PG_PASS}
+    - POSTGRES_DB=siahost
+  volumes: [pg_data:/var/lib/postgresql/data]
+qdrant:
+  image: qdrant/qdrant:latest
+  volumes: [qdrant_data:/qdrant/storage]</pre>`,
+          passes:
+            'Pricing history retrieved by <b>Pricing & Collateral Optimizer</b>. Utilisation trends served to <b>Scaling Advisor</b> for growth forecasting.',
+        },
+
+        // L09 — OBSERVABILITY
+        uptime_monitor: {
+          name: 'Uptime Monitoring & Risk Detector',
+          type: 'OBSERVABILITY',
+          layer: 'L09',
+          badge: 16,
+          conns: [
+            {
+              d: 'in',
+              to: 'Self-Hosting Manager',
+              p: 'Container health signals',
+            },
+            {
+              d: 'in',
+              to: 'hostd Integration Service',
+              p: 'Host health endpoint',
+            },
+            {
+              d: 'out',
+              to: 'Alert & Notification System',
+              p: 'Downtime risk alerts',
+            },
+            { d: 'out', to: 'Recommendation Engine', p: 'Risk signals' },
+          ],
+          summary:
+            'Prometheus + Grafana stack with custom hostd exporters for continuous health monitoring — detecting downtime patterns, disk health degradation, and uptime risk before they affect Sia scores.',
+          does: 'Node Exporter + custom hostd Prometheus exporter scrape metrics every 15 seconds. Alertmanager evaluates rules: storage_utilisation>90%, hostd_uptime_minutes<10_in_last_hour, disk_io_error_count>0. Grafana dashboards show 30-day uptime history, contract proof success rate, and revenue trend. The uptime score tracked by Sia indexd is directly correlated with earnings — this stack is the early-warning system.',
+          provides: `Proactive downtime prevention. Sia penalises hosts with poor uptime by lowering their indexd score — poor scores mean fewer contracts. Catching a disk failure 12 hours early can be the difference between a graceful migration and a slashing event.<pre class="docker-snippet">prometheus:
+  image: prom/prometheus:latest
+  volumes: ["./prometheus.yml:/etc/prometheus/prometheus.yml"]
+grafana:
+  image: grafana/grafana:latest
+  ports: ["3001:3000"]
+  volumes: [grafana_data:/var/lib/grafana]</pre>`,
+          passes:
+            'Downtime risk alerts forwarded to <b>Alert & Notification System</b>. Risk signals sent to <b>Recommendation Engine</b> for operator recommendations.',
+        },
+        alert_notification: {
+          name: 'Alert & Notification System',
+          type: 'OBSERVABILITY',
+          layer: 'L09',
+          badge: 17,
+          conns: [
+            {
+              d: 'in',
+              to: 'Uptime Monitoring & Risk Detector',
+              p: 'Downtime risk alerts',
+            },
+            { d: 'in', to: 'Configuration Applier', p: 'Change confirmation' },
+            {
+              d: 'in',
+              to: 'Recommendation Engine',
+              p: 'Actionable recommendations',
+            },
+            {
+              d: 'in',
+              to: 'Scaling Advisor',
+              p: 'Hardware upgrade recommendations',
+            },
+            { d: 'out', to: 'Unified Dashboard', p: 'In-app notifications' },
+          ],
+          summary:
+            'Alertmanager-powered multi-channel notification system that routes critical alerts (downtime, proof failures, revenue drops) and agent recommendations to the operator via preferred channels.',
+          does: 'Alertmanager routes from Prometheus. Supports: email (SMTP), webhooks (n8n CE integration), and in-app dashboard notifications. Alerts are classified by severity: CRITICAL (hostd down, proof imminent failure), WARNING (pricing 20% above market, disk >85%), INFO (optimisation applied, weekly performance summary). Notification deduplication prevents alert storms. LangSmith + LangFuse traces attached to AI-generated alert summaries.',
+          provides: `Operators don\'t need to watch dashboards. The system proactively informs them when action is needed and provides the recommended action alongside each alert — reducing time-to-resolution from hours to minutes.<pre class="docker-snippet">alertmanager:
+  image: prom/alertmanager:latest
+  ports: ["9093:9093"]
+  volumes: ["./alertmanager.yml:/etc/alertmanager/alertmanager.yml"]</pre>`,
+          passes:
+            'In-app notifications pushed to <b>Unified Dashboard</b> via websocket. External channel notifications dispatched via Alertmanager webhooks.',
+        },
+        security_guard: {
+          name: 'Security & Privacy Guard',
+          type: 'OBSERVABILITY',
+          layer: 'L09',
+          badge: 18,
+          conns: [
+            {
+              d: 'out',
+              to: 'Self-Hosting Manager',
+              p: 'Security scan results',
+            },
+            { d: 'in', to: 'hostd Integration Service', p: 'API key audit' },
+            {
+              d: 'out',
+              to: 'Alert & Notification System',
+              p: 'Security alerts',
+            },
+          ],
+          summary:
+            'Non-custodial security scanner that audits API key exposure, validates all agent actions stay within the local network boundary, and ensures zero renter data is stored or transmitted.',
+          does: "Runs periodic security audits: API key rotation reminders, network egress validation (ensures no renter-uploaded data leaves the host), hostd API key scope verification, and Docker container vulnerability scanning via Trivy. Validates that all agent MCP tool calls are within their declared security scope. Ensures compliance with Sia's non-custodial design — the host never sees renter content.",
+          provides: `Operator confidence that the autonomous agent hasn\'t introduced new attack surface. Non-custodial compliance is legally important — hosts must never store or inspect renter data, and this guard enforces that boundary programmatically.<pre class="docker-snippet">security-scanner:
+  image: siahost-agent:latest
+  command: ["security-worker"]
+  environment:
+    - SCAN_INTERVAL=3600s
+    - TRIVY_ENABLED=true
+    - NETWORK_BOUNDARY=10.0.0.0/8</pre>`,
+          passes:
+            'Security scan results forwarded to <b>Self-Hosting Manager</b> for container updates. Security alerts dispatched to <b>Alert & Notification System</b>.',
+        },
+        impact_reporting: {
+          name: 'Impact & Reporting Service',
+          type: 'OBSERVABILITY',
+          layer: 'L09',
+          badge: 19,
+          conns: [
+            { d: 'in', to: 'Scaling Advisor', p: 'Growth projections' },
+            { d: 'in', to: 'Local Persistence Store', p: 'Historical metrics' },
+            { d: 'out', to: 'Unified Dashboard', p: 'Quarterly report data' },
+          ],
+          summary:
+            'Generates quarterly Sia network contribution reports — storage contributed, contracts served, uptime percentile, revenue earned — formatted for grant applications and ecosystem reporting.',
+          does: 'Aggregates 90-day performance data from TimescaleDB: total storage-months contributed, contracts successfully completed, uptime percentile vs Sia network average (from indexd), and revenue in SC/USD. Generates a formatted PDF/JSON report with growth trajectory and comparison to previous quarters. Specifically designed to support Sia Foundation grant reporting requirements.',
+          provides: `Operators who contribute meaningfully to the Sia network have access to grants and ecosystem support. This service produces the evidence required for those applications automatically, turning raw metrics into compelling narrative data.<pre class="docker-snippet">reporting-service:
+  image: siahost-agent:latest
+  command: ["reporting-worker"]
+  environment:
+    - REPORT_SCHEDULE=0 9 1 1,4,7,10 *
+    - DB_URL=\${TIMESCALE_URL}</pre>`,
+          passes:
+            'Quarterly report data surfaces in the <b>Unified Dashboard</b> for operator review and export.',
+        },
+      }
+
+      // ═══════════════════════════════════════════════
+      // XLINKS
+      // ═══════════════════════════════════════════════
+      const XLINKS = [
+        {
+          from: 'indexd_insights',
+          to: 'agent_core',
+          color: '#00d4ff',
+          label: 'network signals',
+        },
+        {
+          from: 'metrics_collector',
+          to: 'agent_core',
+          color: '#00d4ff',
+          label: 'emits events',
+        },
+        {
+          from: 'agent_core',
+          to: 'pricing_optimizer',
+          color: '#a78bfa',
+          label: 'invokes MCP',
+        },
+        {
+          from: 'agent_core',
+          to: 'event_orchestrator',
+          color: '#a78bfa',
+          label: 'triggers workflow',
+        },
+        {
+          from: 'pricing_optimizer',
+          to: 'config_applier',
+          color: '#a78bfa',
+          label: 'dispatches activity',
+        },
+        {
+          from: 'event_orchestrator',
+          to: 'recommendation_engine',
+          color: '#06ffa5',
+          label: 'callback result',
+        },
+        {
+          from: 'event_orchestrator',
+          to: 'config_applier',
+          color: '#06ffa5',
+          label: 'schedules activity',
+        },
+        {
+          from: 'sia_blockchain',
+          to: 'indexd_insights',
+          color: '#f5c842',
+          label: 'oracle feed',
+        },
+        {
+          from: 'sia_blockchain',
+          to: 'metrics_collector',
+          color: '#f5c842',
+          label: 'proof events',
+        },
+        {
+          from: 'sia_blockchain',
+          to: 'agent_core',
+          color: '#f5c842',
+          label: 'chain state',
+        },
+        {
+          from: 'hostd_integration',
+          to: 'metrics_collector',
+          color: '#00e5a0',
+          label: 'webhook push',
+        },
+        {
+          from: 'hostd_integration',
+          to: 'sia_blockchain',
+          color: '#00e5a0',
+          label: 'submits proofs',
+        },
+        {
+          from: 'config_applier',
+          to: 'local_persistence',
+          color: '#00e5a0',
+          label: 'audit log write',
+        },
+        {
+          from: 'recommendation_engine',
+          to: 'unified_dashboard',
+          color: '#fb923c',
+          label: 'UI updates',
+        },
+        {
+          from: 'onboarding_wizard',
+          to: 'hostd_integration',
+          color: '#fb923c',
+          label: 'initial setup',
+        },
+        {
+          from: 'unified_dashboard',
+          to: 'event_orchestrator',
+          color: '#fb923c',
+          label: 'manual trigger',
+        },
+        {
+          from: 'self_hosting_manager',
+          to: 'uptime_monitor',
+          color: '#f472b6',
+          label: 'health signals',
+        },
+        {
+          from: 'uptime_monitor',
+          to: 'alert_notification',
+          color: '#38bdf8',
+          label: 'metric emitted',
+        },
+        {
+          from: 'local_persistence',
+          to: 'pricing_optimizer',
+          color: '#ffd166',
+          label: 'query executed',
+        },
+        {
+          from: 'scaling_advisor',
+          to: 'alert_notification',
+          color: '#a78bfa',
+          label: 'scaling advice',
+        },
+        {
+          from: 'security_guard',
+          to: 'self_hosting_manager',
+          color: '#38bdf8',
+          label: 'scan results',
+        },
+        {
+          from: 'impact_reporting',
+          to: 'unified_dashboard',
+          color: '#38bdf8',
+          label: 'report data',
+        },
+      ]
+
+      // ═══════════════════════════════════════════════
+      // FLOW STEPS
+      // ═══════════════════════════════════════════════
+      const FLOW_STEPS = [
+        {
+          label: 'Data Ingest',
+          layer: 'L01',
+          nodes: ['indexd_insights', 'metrics_collector'],
+          links: [0, 1],
+        },
+        {
+          label: 'Agent Analysis',
+          layer: 'L02',
+          nodes: ['agent_core', 'pricing_optimizer', 'scaling_advisor'],
+          links: [2, 3, 4, 19],
+        },
+        {
+          label: 'Workflow Exec',
+          layer: 'L03',
+          nodes: ['event_orchestrator', 'recommendation_engine'],
+          links: [5, 6],
+        },
+        {
+          label: 'On-Chain Trust',
+          layer: 'L04',
+          nodes: ['sia_blockchain'],
+          links: [7, 8, 9, 11],
+        },
+        {
+          label: 'API Processing',
+          layer: 'L05',
+          nodes: ['hostd_integration', 'config_applier'],
+          links: [10, 12],
+        },
+        {
+          label: 'UI Action',
+          layer: 'L06',
+          nodes: ['onboarding_wizard', 'unified_dashboard'],
+          links: [13, 14, 15],
+        },
+        {
+          label: 'Container Mgmt',
+          layer: 'L07',
+          nodes: ['self_hosting_manager'],
+          links: [16],
+        },
+        {
+          label: 'DB Persist',
+          layer: 'L08',
+          nodes: ['local_persistence'],
+          links: [18],
+        },
+        {
+          label: 'Observability',
+          layer: 'L09',
+          nodes: [
+            'uptime_monitor',
+            'alert_notification',
+            'security_guard',
+            'impact_reporting',
+          ],
+          links: [17, 20, 21],
+        },
+      ]
+
+      // ═══════════════════════════════════════════════
+      // SVG ICONS (unique per node)
+      // ═══════════════════════════════════════════════
+      function getIcon(id, color) {
+        const icons = {
+          indexd_insights: `<svg width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" fill="none" stroke="${color}" stroke-width="1.5" opacity="0.3"/><circle cx="16" cy="16" r="7" fill="none" stroke="${color}" stroke-width="1.5"/><line x1="16" y1="4" x2="16" y2="9" stroke="${color}" stroke-width="2" stroke-linecap="round"/><line x1="16" y1="23" x2="16" y2="28" stroke="${color}" stroke-width="2" stroke-linecap="round"/><line x1="4" y1="16" x2="9" y2="16" stroke="${color}" stroke-width="2" stroke-linecap="round"/><line x1="23" y1="16" x2="28" y2="16" stroke="${color}" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="16" r="3" fill="${color}"><animate attributeName="r" values="2;4;2" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite"/></circle></svg>`,
+          metrics_collector: `<svg width="32" height="32" viewBox="0 0 32 32"><rect x="3" y="18" width="5" height="10" rx="1" fill="${color}" opacity="0.7"/><rect x="10" y="12" width="5" height="16" rx="1" fill="${color}" opacity="0.85"/><rect x="17" y="7" width="5" height="21" rx="1" fill="${color}"/><rect x="24" y="14" width="5" height="14" rx="1" fill="${color}" opacity="0.6"/><polyline points="5.5,18 12.5,12 19.5,7 26.5,14" fill="none" stroke="${color}" stroke-width="1.5" stroke-dasharray="2 1"><animate attributeName="stroke-dashoffset" from="6" to="0" dur="1.5s" repeatCount="indefinite"/></polyline></svg>`,
+          agent_core: `<svg width="32" height="32" viewBox="0 0 32 32"><polygon points="16,4 28,10 28,22 16,28 4,22 4,10" fill="none" stroke="${color}" stroke-width="1.5"/><polygon points="16,8 24,12 24,20 16,24 8,20 8,12" fill="none" stroke="${color}" stroke-width="1" opacity="0.5"/><circle cx="16" cy="16" r="4" fill="${color}"><animate attributeName="r" values="3;5;3" dur="1.8s" repeatCount="indefinite"/></circle><animateTransform attributeName="transform" type="rotate" from="0 16 16" to="360 16 16" dur="20s" repeatCount="indefinite"/></svg>`,
+          pricing_optimizer: `<svg width="32" height="32" viewBox="0 0 32 32"><path d="M6 22 L10 14 L14 18 L19 8 L26 16" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="26" cy="16" r="3" fill="${color}"><animate attributeName="opacity" values="1;0.3;1" dur="1.5s" repeatCount="indefinite"/></circle><line x1="4" y1="26" x2="28" y2="26" stroke="${color}" stroke-width="1" opacity="0.4"/><line x1="4" y1="26" x2="4" y2="6" stroke="${color}" stroke-width="1" opacity="0.4"/></svg>`,
+          scaling_advisor: `<svg width="32" height="32" viewBox="0 0 32 32"><path d="M16 4 L28 28 L4 28 Z" fill="none" stroke="${color}" stroke-width="1.5"/><path d="M16 10 L24 26 L8 26 Z" fill="${color}" opacity="0.2"/><line x1="16" y1="14" x2="16" y2="22" stroke="${color}" stroke-width="2" stroke-linecap="round"><animate attributeName="y2" values="22;18;22" dur="2s" repeatCount="indefinite"/></line><circle cx="16" cy="26" r="1.5" fill="${color}"/></svg>`,
+          event_orchestrator: `<svg width="32" height="32" viewBox="0 0 32 32"><circle cx="8" cy="16" r="4" fill="none" stroke="${color}" stroke-width="1.5"/><circle cx="24" cy="8" r="4" fill="none" stroke="${color}" stroke-width="1.5"/><circle cx="24" cy="24" r="4" fill="none" stroke="${color}" stroke-width="1.5"/><line x1="12" y1="15" x2="20" y2="10" stroke="${color}" stroke-width="1.5" stroke-dasharray="3 2"><animate attributeName="stroke-dashoffset" from="10" to="0" dur="1.2s" repeatCount="indefinite"/></line><line x1="12" y1="17" x2="20" y2="22" stroke="${color}" stroke-width="1.5" stroke-dasharray="3 2"><animate attributeName="stroke-dashoffset" from="10" to="0" dur="1.2s" repeatCount="indefinite"/></line></svg>`,
+          recommendation_engine: `<svg width="32" height="32" viewBox="0 0 32 32"><rect x="4" y="6" width="24" height="20" rx="3" fill="none" stroke="${color}" stroke-width="1.5"/><line x1="8" y1="12" x2="24" y2="12" stroke="${color}" stroke-width="1.5" stroke-linecap="round"/><line x1="8" y1="16" x2="20" y2="16" stroke="${color}" stroke-width="1.5" stroke-linecap="round"/><line x1="8" y1="20" x2="18" y2="20" stroke="${color}" stroke-width="1.5" stroke-linecap="round"/><circle cx="26" cy="20" r="3" fill="${color}"><animate attributeName="opacity" values="1;0.4;1" dur="2s" repeatCount="indefinite"/></circle></svg>`,
+          sia_blockchain: `<svg width="32" height="32" viewBox="0 0 32 32"><polygon points="16,3 22,7 22,15 16,19 10,15 10,7" fill="none" stroke="${color}" stroke-width="1.5"/><polygon points="16,13 22,17 22,25 16,29 10,25 10,17" fill="none" stroke="${color}" stroke-width="1.5" opacity="0.5"/><line x1="10" y1="7" x2="10" y2="15" stroke="${color}" stroke-width="1" opacity="0.3"/><line x1="22" y1="7" x2="22" y2="15" stroke="${color}" stroke-width="1" opacity="0.3"/><circle cx="16" cy="11" r="2.5" fill="${color}"><animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite"/></circle><circle cx="16" cy="21" r="2.5" fill="${color}" opacity="0.5"><animate attributeName="opacity" values="0.5;1;0.5" dur="2s" repeatCount="indefinite"/></circle><line x1="16" y1="19" x2="16" y2="13" stroke="${color}" stroke-width="1.5" stroke-dasharray="2 1"><animate attributeName="stroke-dashoffset" from="6" to="0" dur="1s" repeatCount="indefinite"/></line></svg>`,
+          hostd_integration: `<svg width="32" height="32" viewBox="0 0 32 32"><rect x="6" y="8" width="20" height="16" rx="2" fill="none" stroke="${color}" stroke-width="1.5"/><rect x="10" y="12" width="12" height="8" rx="1" fill="${color}" opacity="0.2"/><circle cx="13" cy="16" r="1.5" fill="${color}"/><circle cx="16" cy="16" r="1.5" fill="${color}" opacity="0.6"/><circle cx="19" cy="16" r="1.5" fill="${color}" opacity="0.3"/><line x1="16" y1="4" x2="16" y2="8" stroke="${color}" stroke-width="2" stroke-linecap="round"/><line x1="16" y1="24" x2="16" y2="28" stroke="${color}" stroke-width="2" stroke-linecap="round"/></svg>`,
+          config_applier: `<svg width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="5" fill="none" stroke="${color}" stroke-width="1.5"/><path d="M16 3 L16 7 M16 25 L16 29 M3 16 L7 16 M25 16 L29 16 M6.5 6.5 L9.5 9.5 M22.5 22.5 L25.5 25.5 M25.5 6.5 L22.5 9.5 M9.5 22.5 L6.5 25.5" stroke="${color}" stroke-width="2" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" from="0 16 16" to="360 16 16" dur="8s" repeatCount="indefinite"/></path></svg>`,
+          onboarding_wizard: `<svg width="32" height="32" viewBox="0 0 32 32"><path d="M8 4 L24 4 L28 8 L28 28 L4 28 L4 8 Z" fill="none" stroke="${color}" stroke-width="1.5"/><line x1="10" y1="13" x2="22" y2="13" stroke="${color}" stroke-width="1.5" stroke-linecap="round"/><line x1="10" y1="17" x2="18" y2="17" stroke="${color}" stroke-width="1.5" stroke-linecap="round"/><circle cx="23" cy="22" r="4" fill="${color}" opacity="0.3" stroke="${color}" stroke-width="1.5"/><polyline points="20,22 22,24 26,20" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+          unified_dashboard: `<svg width="32" height="32" viewBox="0 0 32 32"><rect x="3" y="4" width="26" height="24" rx="3" fill="none" stroke="${color}" stroke-width="1.5"/><rect x="7" y="8" width="8" height="7" rx="1" fill="${color}" opacity="0.25"/><rect x="17" y="8" width="8" height="7" rx="1" fill="${color}" opacity="0.15"/><rect x="7" y="17" width="18" height="7" rx="1" fill="${color}" opacity="0.1"/><line x1="10" y1="20" x2="10" y2="22" stroke="${color}" stroke-width="1.5" stroke-linecap="round"/><line x1="14" y1="19" x2="14" y2="22" stroke="${color}" stroke-width="1.5" stroke-linecap="round"/><line x1="18" y1="20.5" x2="18" y2="22" stroke="${color}" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+          self_hosting_manager: `<svg width="32" height="32" viewBox="0 0 32 32"><rect x="4" y="4" width="10" height="10" rx="2" fill="none" stroke="${color}" stroke-width="1.5"/><rect x="18" y="4" width="10" height="10" rx="2" fill="none" stroke="${color}" stroke-width="1.5"/><rect x="4" y="18" width="10" height="10" rx="2" fill="none" stroke="${color}" stroke-width="1.5"/><rect x="18" y="18" width="10" height="10" rx="2" fill="none" stroke="${color}" stroke-width="1.5"/><line x1="14" y1="9" x2="18" y2="9" stroke="${color}" stroke-width="1.5" stroke-dasharray="2 1"><animate attributeName="stroke-dashoffset" from="6" to="0" dur="1.5s" repeatCount="indefinite"/></line><line x1="9" y1="14" x2="9" y2="18" stroke="${color}" stroke-width="1.5" stroke-dasharray="2 1"><animate attributeName="stroke-dashoffset" from="6" to="0" dur="1.5s" repeatCount="indefinite"/></line></svg>`,
+          local_persistence: `<svg width="32" height="32" viewBox="0 0 32 32"><ellipse cx="16" cy="9" rx="11" ry="4" fill="none" stroke="${color}" stroke-width="1.5"/><path d="M5 9 L5 23 C5 25.2 10 27 16 27 C22 27 27 25.2 27 23 L27 9" fill="none" stroke="${color}" stroke-width="1.5"/><path d="M5 16 C5 18.2 10 20 16 20 C22 20 27 18.2 27 16" fill="none" stroke="${color}" stroke-width="1.5" stroke-dasharray="3 2"/><ellipse cx="16" cy="9" rx="11" ry="4" fill="${color}" opacity="0.15"/></svg>`,
+          uptime_monitor: `<svg width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="${color}" stroke-width="1.5" opacity="0.4"/><path d="M16 8 L16 16 L21 21" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="16" cy="16" r="2" fill="${color}"/><circle cx="16" cy="5" r="1.5" fill="${color}"><animate attributeName="opacity" values="1;0.2;1" dur="1s" repeatCount="indefinite"/></circle></svg>`,
+          alert_notification: `<svg width="32" height="32" viewBox="0 0 32 32"><path d="M16 4 L16 7" stroke="${color}" stroke-width="2" stroke-linecap="round"/><path d="M7 10 C7 6 9 4 16 4 C23 4 25 6 25 10 L25 20 L28 23 L4 23 L7 20 Z" fill="none" stroke="${color}" stroke-width="1.5"/><path d="M13 23 C13 24.7 14.3 26 16 26 C17.7 26 19 24.7 19 23" fill="none" stroke="${color}" stroke-width="1.5"/><circle cx="22" cy="9" r="4" fill="${color}"><animate attributeName="r" values="3;5;3" dur="1.5s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;0.5;1" dur="1.5s" repeatCount="indefinite"/></circle></svg>`,
+          security_guard: `<svg width="32" height="32" viewBox="0 0 32 32"><path d="M16 3 L27 8 L27 18 C27 23 22 27 16 29 C10 27 5 23 5 18 L5 8 Z" fill="${color}" opacity="0.1" stroke="${color}" stroke-width="1.5"/><line x1="11" y1="16" x2="15" y2="20" stroke="${color}" stroke-width="2" stroke-linecap="round"/><line x1="15" y1="20" x2="21" y2="13" stroke="${color}" stroke-width="2" stroke-linecap="round"/></svg>`,
+          impact_reporting: `<svg width="32" height="32" viewBox="0 0 32 32"><rect x="6" y="4" width="20" height="24" rx="2" fill="none" stroke="${color}" stroke-width="1.5"/><line x1="10" y1="10" x2="22" y2="10" stroke="${color}" stroke-width="1.5" stroke-linecap="round"/><line x1="10" y1="14" x2="22" y2="14" stroke="${color}" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/><line x1="10" y1="18" x2="18" y2="18" stroke="${color}" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/><path d="M16 22 L19 19 L22 22" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><animate attributeName="opacity" values="1;0.4;1" dur="2.5s" repeatCount="indefinite"/></path></svg>`,
+        }
+        return (
+          icons[id] ||
+          `<svg width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="10" fill="none" stroke="${color}" stroke-width="1.5"/></svg>`
+        )
+      }
+
+      // ═══════════════════════════════════════════════
+      // BUILD DOM
+      // ═══════════════════════════════════════════════
+      function buildLanes() {
+        const scrollArea = document.getElementById('scroll-area')
+        // Group nodes by layer
+        const byLayer = {}
+        LAYERS.forEach((l) => {
+          byLayer[l.id] = []
+        })
+        Object.entries(ND).forEach(([id, n]) => {
+          byLayer[n.layer].push({ id, ...n })
+        })
+
+        LAYERS.forEach((layer, li) => {
+          const nodes = byLayer[layer.id]
+          const bg = hexToRgba(layer.color, 0.03)
+          const row = document.createElement('div')
+          row.className = 'lane-row'
+          row.id = `lane-row-${layer.id}`
+          row.innerHTML = `
+      <div class="lane-gutter">
+        <div class="lane-num" style="color:${layer.color}">${layer.id}</div>
+        <div class="lane-label" style="color:${layer.color}">${layer.name}</div>
+      </div>
+      <div class="swimlane" style="background:${bg};border-left:3px solid ${layer.color}" id="sl-${layer.id}">
+        <div class="lane-nodes" id="ln-${layer.id}"></div>
+      </div>`
+          scrollArea.appendChild(row)
+
+          const laneNodes = row.querySelector(`#ln-${layer.id}`)
+          nodes.forEach((n, ni) => {
+            if (ni > 0) {
+              const arr = document.createElement('div')
+              arr.className = 'inline-arrow'
+              arr.innerHTML = `<svg width="36" height="14" viewBox="0 0 36 14"><line x1="2" y1="7" x2="28" y2="7" stroke="${layer.color}" stroke-width="1.2" stroke-dasharray="4 3" opacity="0.4"><animate attributeName="stroke-dashoffset" from="14" to="0" dur="1.5s" repeatCount="indefinite"/></line><polygon points="28,4 34,7 28,10" fill="${layer.color}" opacity="0.4"/></svg>`
+              laneNodes.appendChild(arr)
+            }
+            const card = document.createElement('div')
+            card.className = 'fnode'
+            card.id = `nd-${n.id}`
+            card.style.color = layer.color
+            card.innerHTML = `
+        <div class="fnode-inner">
+          <div class="fnode-icon" style="background:${hexToRgba(layer.color, 0.1)}">
+            ${getIcon(n.id, layer.color)}
+            <div class="fnode-badge" style="background:${layer.color}">${n.badge}</div>
+          </div>
+          <div class="fnode-name">${n.name}</div>
+          <div class="fnode-type">${n.type}</div>
+        </div>`
+            card.addEventListener(
+              IS_TOUCH ? 'touchend' : 'click',
+              handleNodeClick,
+            )
+            laneNodes.appendChild(card)
+          })
+        })
+      }
+
+      function hexToRgba(hex, a) {
+        const r = parseInt(hex.slice(1, 3), 16),
+          g = parseInt(hex.slice(3, 5), 16),
+          b = parseInt(hex.slice(5, 7), 16)
+        return `rgba(${r},${g},${b},${a})`
+      }
+
+      // ═══════════════════════════════════════════════
+      // XLINK DRAWING
+      // ═══════════════════════════════════════════════
+      function getNodeCenter(id) {
+        const el = document.getElementById(`nd-${id}`)
+        if (!el) return null
+        // Walk offsetParent chain to get position relative to scroll-area (canvas-local coords)
+        const sa = document.getElementById('scroll-area')
+        let ox = 0,
+          oy = 0,
+          cur = el
+        while (cur && cur !== sa) {
+          ox += cur.offsetLeft
+          oy += cur.offsetTop
+          cur = cur.offsetParent
+        }
+        return { x: ox + el.offsetWidth / 2, y: oy + el.offsetHeight / 2 }
+      }
+
+      function drawXLinks() {
+        const svg = document.getElementById('xlink-svg')
+        svg.innerHTML = ''
+        XLINKS.forEach((xl, i) => {
+          const s = getNodeCenter(xl.from)
+          const t = getNodeCenter(xl.to)
+          if (!s || !t) return
+          const dx = t.x - s.x,
+            dy = t.y - s.y
+          const cp1x = s.x + dx * 0.4,
+            cp1y = s.y
+          const cp2x = t.x - dx * 0.4,
+            cp2y = t.y
+          const g = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+          g.className = 'xconn-group'
+          g.id = `xl-${i}`
+          const path = document.createElementNS(
+            'http://www.w3.org/2000/svg',
+            'path',
+          )
+          path.setAttribute(
+            'd',
+            `M${s.x},${s.y} C${cp1x},${cp1y} ${cp2x},${cp2y} ${t.x},${t.y}`,
+          )
+          path.setAttribute('stroke', xl.color)
+          path.className.baseVal = 'xconn'
+          g.appendChild(path)
+          // Arrow tip
+          const ang = Math.atan2(t.y - cp2y, t.x - cp2x)
+          const al = 8
+          const ax = t.x - al * Math.cos(ang),
+            ay = t.y - al * Math.sin(ang)
+          const arrow = document.createElementNS(
+            'http://www.w3.org/2000/svg',
+            'polygon',
+          )
+          const pts = [
+            [t.x, t.y],
+            [ax - 3 * Math.sin(ang), ay + 3 * Math.cos(ang)],
+            [ax + 3 * Math.sin(ang), ay - 3 * Math.cos(ang)],
+          ]
+            .map((p) => p.join(','))
+            .join(' ')
+          arrow.setAttribute('points', pts)
+          arrow.setAttribute('fill', xl.color)
+          arrow.setAttribute('opacity', '0.22')
+          arrow.id = `xl-arrow-${i}`
+          g.appendChild(arrow)
+          // Label
+          const mx = (s.x + t.x) / 2,
+            my = (s.y + t.y) / 2
+          const lbg = document.createElementNS(
+            'http://www.w3.org/2000/svg',
+            'rect',
+          )
+          lbg.setAttribute('x', mx - xl.label.length * 2.8 - 4)
+          lbg.setAttribute('y', my - 8)
+          lbg.setAttribute('width', xl.label.length * 5.6 + 8)
+          lbg.setAttribute('height', 14)
+          lbg.setAttribute('rx', '3')
+          lbg.setAttribute('fill', 'rgba(7,10,16,0.85)')
+          lbg.setAttribute('stroke', xl.color)
+          lbg.setAttribute('stroke-width', '0.5')
+          lbg.className.baseVal = 'xconn-label-bg'
+          g.appendChild(lbg)
+          const lt = document.createElementNS(
+            'http://www.w3.org/2000/svg',
+            'text',
+          )
+          lt.setAttribute('x', mx)
+          lt.setAttribute('y', my + 1)
+          lt.setAttribute('text-anchor', 'middle')
+          lt.setAttribute('dominant-baseline', 'middle')
+          lt.setAttribute('fill', xl.color)
+          lt.className.baseVal = 'xconn-label'
+          lt.textContent = xl.label
+          g.appendChild(lt)
+          svg.appendChild(g)
+        })
+      }
+
+      // ═══════════════════════════════════════════════
+      // VIEWPORT
+      // ═══════════════════════════════════════════════
+      function applyVP() {
+        document.getElementById('canvas-root').style.transform =
+          `translate(${vpX}px,${vpY}px) scale(${vpScale})`
+        document.getElementById('zoom-label').textContent =
+          Math.round(vpScale * 100) + '%'
+        updateTether()
+      }
+
+      function zoomAt(cx, cy, nscale) {
+        const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, nscale))
+        const ratio = clamped / vpScale
+        vpX = cx - (cx - vpX) * ratio
+        vpY = cy - (cy - vpY) * ratio
+        vpScale = clamped
+        applyVP()
+        showZoomToast()
+      }
+
+      function zoomStep(dir) {
+        const stage = document.getElementById('stage')
+        const cx = stage.offsetWidth / 2,
+          cy = stage.offsetHeight / 2
+        let idx = ZOOM_STEPS.findIndex((z) => z >= vpScale)
+        if (idx < 0) idx = ZOOM_STEPS.length - 1
+        if (dir > 0) idx = Math.min(ZOOM_STEPS.length - 1, idx + 1)
+        else idx = Math.max(0, idx - 1)
+        zoomAt(cx, cy, ZOOM_STEPS[idx])
+      }
+
+      function zoomToFit() {
+        const stage = document.getElementById('stage')
+        const sa = document.getElementById('scroll-area')
+        const sw = stage.offsetWidth,
+          sh = stage.offsetHeight
+        const cw = sa.scrollWidth,
+          ch = sa.scrollHeight
+        const scale = Math.min(sw / cw, sh / ch) * 0.92
+        vpScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale))
+        vpX = (sw - cw * vpScale) / 2
+        vpY = (sh - ch * vpScale) / 2
+        applyVP()
+      }
+
+      function zoomTo100() {
+        vpScale = 1
+        vpX = 40
+        vpY = 20
+        applyVP()
+      }
+
+      let zoomToastTimer = null
+      function showZoomToast() {
+        const t = document.getElementById('zoom-toast')
+        t.textContent = Math.round(vpScale * 100) + '%'
+        t.classList.add('show')
+        clearTimeout(zoomToastTimer)
+        zoomToastTimer = setTimeout(() => t.classList.remove('show'), 900)
+      }
+
+      function setMode(m) {
+        curMode = m
+        const stage = document.getElementById('stage')
+        stage.className = m === 'pan' ? 'mode-pan' : 'mode-select'
+        document
+          .getElementById('btn-select')
+          .classList.toggle('active', m === 'select')
+        document
+          .getElementById('btn-pan')
+          .classList.toggle('active', m === 'pan')
+        document
+          .getElementById('btn-pan')
+          .classList.toggle('pan-mode', m === 'pan')
+      }
+
+      // ═══════════════════════════════════════════════
+      // MOUSE EVENTS
+      // ═══════════════════════════════════════════════
+      let mouseDownOnNode = false
+      let dragDist = 0
+      let mdX = 0,
+        mdY = 0
+
+      document.getElementById('stage').addEventListener('mousedown', (e) => {
+        if (e.target.closest('.fnode')) {
+          mouseDownOnNode = true
+          mdX = e.clientX
+          mdY = e.clientY
+          dragDist = 0
+          return
+        }
+        mouseDownOnNode = false
+        if (curMode === 'pan' || e.button === 1) {
+          isPanning = true
+          panStartX = e.clientX
+          panStartY = e.clientY
+          panOriginX = vpX
+          panOriginY = vpY
+          document.getElementById('stage').classList.add('panning')
+        }
+      })
+      document.addEventListener('mousemove', (e) => {
+        if (mouseDownOnNode) {
+          dragDist += Math.abs(e.clientX - mdX) + Math.abs(e.clientY - mdY)
+          mdX = e.clientX
+          mdY = e.clientY
+          return
+        }
+        if (!isPanning) return
+        vpX = panOriginX + (e.clientX - panStartX)
+        vpY = panOriginY + (e.clientY - panStartY)
+        applyVP()
+        drawXLinks()
+      })
+      document.addEventListener('mouseup', (e) => {
+        isPanning = false
+        document.getElementById('stage').classList.remove('panning')
+        mouseDownOnNode = false
+      })
+      document.getElementById('stage').addEventListener(
+        'wheel',
+        (e) => {
+          e.preventDefault()
+          const rect = document.getElementById('stage').getBoundingClientRect()
+          zoomAt(
+            e.clientX - rect.left,
+            e.clientY - rect.top,
+            vpScale * (1 - e.deltaY * 0.001),
+          )
+          drawXLinks()
+        },
+        { passive: false },
+      )
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'v' || e.key === 'V') setMode('select')
+        if (e.key === 'h' || e.key === 'H') setMode('pan')
+        if (e.key === ' ') {
+          e.preventDefault()
+          zoomToFit()
+        }
+        if (e.key === '-') zoomStep(-1)
+        if (e.key === '=' || e.key === '+') zoomStep(1)
+      })
+
+      // ═══════════════════════════════════════════════
+      // TOUCH EVENTS
+      // ═══════════════════════════════════════════════
+      function getTouchById(list, id) {
+        for (let t of list) if (t.identifier === id) return t
+        return null
+      }
+      let t0id = null
+      document.getElementById('stage').addEventListener(
+        'touchstart',
+        (e) => {
+          e.preventDefault()
+          if (e.touches.length === 1) {
+            const t = e.touches[0]
+            t0id = t.identifier
+            panStartX = t.clientX
+            panStartY = t.clientY
+            panOriginX = vpX
+            panOriginY = vpY
+            isPanning = true
+            lastDist = null
+            lastMid = null
+          } else if (e.touches.length === 2) {
+            const t1 = e.touches[0],
+              t2 = e.touches[1]
+            lastDist = Math.hypot(
+              t2.clientX - t1.clientX,
+              t2.clientY - t1.clientY,
+            )
+            lastMid = {
+              x: (t1.clientX + t2.clientX) / 2,
+              y: (t1.clientY + t2.clientY) / 2,
+            }
+            isPanning = false
+          }
+        },
+        { passive: false },
+      )
+      document.getElementById('stage').addEventListener(
+        'touchmove',
+        (e) => {
+          e.preventDefault()
+          if (e.touches.length === 1 && isPanning) {
+            const t = getTouchById(e.touches, t0id) || e.touches[0]
+            const dx = t.clientX - panStartX,
+              dy = t.clientY - panStartY
+            vpX = panOriginX + dx
+            vpY = panOriginY + dy
+            applyVP()
+            drawXLinks()
+          } else if (e.touches.length === 2 && lastDist !== null) {
+            const t1 = e.touches[0],
+              t2 = e.touches[1]
+            const dist = Math.hypot(
+              t2.clientX - t1.clientX,
+              t2.clientY - t1.clientY,
+            )
+            const mid = {
+              x: (t1.clientX + t2.clientX) / 2,
+              y: (t1.clientY + t2.clientY) / 2,
+            }
+            const rect = document
+              .getElementById('stage')
+              .getBoundingClientRect()
+            zoomAt(
+              mid.x - rect.left,
+              mid.y - rect.top,
+              vpScale * (dist / lastDist),
+            )
+            lastDist = dist
+            lastMid = mid
+            drawXLinks()
+          }
+        },
+        { passive: false },
+      )
+      document.getElementById('stage').addEventListener(
+        'touchend',
+        (e) => {
+          if (e.touches.length === 0) {
+            isPanning = false
+            lastDist = null
+            lastMid = null
+          }
+          if (e.changedTouches.length === 1 && e.touches.length === 0) {
+            // tap detection handled by handleNodeClick
+          }
+        },
+        { passive: false },
+      )
+      document.getElementById('stage').addEventListener('touchcancel', () => {
+        isPanning = false
+        lastDist = null
+        lastMid = null
+      })
+      // Show touch hint
+      if (IS_TOUCH) {
+        const th = document.getElementById('touch-hint')
+        th.classList.add('show')
+        setTimeout(() => th.classList.remove('show'), 3500)
+      }
+
+      // ═══════════════════════════════════════════════
+      // POPOVER SYSTEM
+      // ═══════════════════════════════════════════════
+      let activeNode = null,
+        currentPop = null,
+        popDragging = false
+      let popDx = 0,
+        popDy = 0,
+        popStartL = 0,
+        popStartT = 0
+
+      const TABS = ['summary', 'does', 'provides', 'passes', 'connections']
+      const TNAMES = [
+        'Overview',
+        'What It Does',
+        'What It Provides',
+        'What It Passes On',
+        'Connections',
+      ]
+
+      function positionPop(nodeEl, pop) {
+        const PW = 364,
+          PH = 400,
+          M = 12
+        const r = nodeEl.getBoundingClientRect()
+        const vw = window.innerWidth,
+          vh = window.innerHeight
+        let left, top
+        if (vh - r.bottom - M >= PH || vh - r.bottom >= r.top - 52) {
+          top = r.bottom + M
+          left = (r.left + r.right) / 2 - PW / 2
+        } else if (r.top - 52 - M >= PH) {
+          top = r.top - PH - M
+          left = (r.left + r.right) / 2 - PW / 2
+        } else if (vw - r.right - M >= PW) {
+          left = r.right + M
+          top = r.top + r.height / 2 - PH / 2
+        } else {
+          left = r.left - PW - M
+          top = r.top + r.height / 2 - PH / 2
+        }
+        pop.style.left = Math.max(8, Math.min(vw - PW - 8, left)) + 'px'
+        pop.style.top = Math.max(60, Math.min(vh - PH - 64, top)) + 'px'
+      }
+
+      function getLayerColor(layerId) {
+        return LAYERS.find((l) => l.id === layerId)?.color || '#06ffa5'
+      }
+
+      function buildPopContent(data, tab) {
+        if (tab === 'connections') {
+          const conns = data.conns || []
+          if (!conns.length)
+            return '<span style="opacity:0.4">No connections defined.</span>'
+          return conns
+            .map((c) => {
+              const dir = c.d === 'out' ? '→' : '←'
+              const dircol = c.d === 'out' ? '#06ffa5' : '#fb923c'
+              return `<div class="conn-row"><span class="conn-dir" style="color:${dircol};background:${hexToRgba(dircol, 0.12)}">${dir} ${c.d.toUpperCase()}</span><span>${c.to}</span><span class="conn-proto">${c.p}</span></div>`
+            })
+            .join('')
+        }
+        return `<p style="margin:0">${data[tab] || '—'}</p>`
+      }
+
+      function highlightNodeLinks(nodeId) {
+        XLINKS.forEach((xl, i) => {
+          const g = document.getElementById('xl-' + i)
+          const path = g ? g.querySelector('.xconn') : null
+          const arrow = document.getElementById('xl-arrow-' + i)
+          if (!g || !path) return
+          if (xl.from === nodeId || xl.to === nodeId) {
+            path.classList.add('active')
+            path.classList.remove('dimmed')
+            if (arrow) arrow.setAttribute('opacity', '0.9')
+          } else {
+            path.classList.remove('active')
+            path.classList.add('dimmed')
+            if (arrow) arrow.setAttribute('opacity', '0.04')
+          }
+        })
+        Object.keys(ND).forEach((id) => {
+          if (id === nodeId) return
+          const connected = XLINKS.some(
+            (xl) =>
+              (xl.from === nodeId && xl.to === id) ||
+              (xl.to === nodeId && xl.from === id),
+          )
+          const el = document.getElementById('nd-' + id)
+          if (!el) return
+          el.style.opacity = connected ? '0.65' : '0.18'
+        })
+      }
+
+      function clearNodeHighlight() {
+        XLINKS.forEach((xl, i) => {
+          const g = document.getElementById('xl-' + i)
+          const path = g ? g.querySelector('.xconn') : null
+          const arrow = document.getElementById('xl-arrow-' + i)
+          if (!path) return
+          path.classList.remove('active', 'dimmed')
+          if (arrow) arrow.setAttribute('opacity', '0.22')
+        })
+        Object.keys(ND).forEach((id) => {
+          const el = document.getElementById('nd-' + id)
+          if (el) {
+            el.classList.remove('dimmed')
+            el.style.opacity = ''
+          }
+        })
+      }
+
+      function openNode(nodeId) {
+        closePop()
+        const data = ND[nodeId]
+        if (!data) return
+        const nodeEl = document.getElementById('nd-' + nodeId)
+        const color = getLayerColor(data.layer)
+        activeNode = nodeId
+        nodeEl.classList.add('active')
+        nodeEl.style.opacity = ''
+        highlightNodeLinks(nodeId)
+
+        const pop = document.createElement('div')
+        pop.className = 'popover'
+        pop.id = 'main-pop'
+        pop.style.width = '364px'
+        pop.dataset.tab = 'summary'
+
+        pop.innerHTML = `
+    <div class="pop-header" id="pop-hdr">
+      <div class="pop-drag-hint"></div>
+      <div class="pop-header-inner">
+        <div class="pop-ico" style="background:${hexToRgba(color, 0.12)}">${getIcon(nodeId, color)}</div>
+        <div>
+          <div class="pop-nm">${data.name}</div>
+          <div class="pop-tp" style="color:${color}">${data.type} · ${data.layer}</div>
+        </div>
+        <button class="pop-x" onclick="closePop()">✕</button>
+      </div>
+    </div>
+    <div class="pop-tabs" id="pop-tabs">
+      ${TNAMES.map((n, i) => `<div class="pop-tab${i === 0 ? ' on' : ''}" onclick="switchTab('${TABS[i]}')" id="ptab-${TABS[i]}" style="${i === 0 ? 'border-bottom-color:' + color + ';color:#f0f4ff' : ''}">${n}</div>`).join('')}
+    </div>
+    <div class="pop-body" id="pop-body">${buildPopContent(data, 'summary')}</div>`
+
+        document.body.appendChild(pop)
+        currentPop = pop
+        positionPop(nodeEl, pop)
+        createTether(color, nodeEl)
+        makeDraggable(pop)
+      }
+
+      function switchTab(tab) {
+        if (!currentPop || !activeNode) return
+        const data = ND[activeNode]
+        document.getElementById('pop-body').innerHTML = buildPopContent(
+          data,
+          tab,
+        )
+        currentPop.dataset.tab = tab
+        const color = getLayerColor(data.layer)
+        TABS.forEach((t, i) => {
+          const el = document.getElementById(`ptab-${t}`)
+          if (!el) return
+          if (t === tab) {
+            el.classList.add('on')
+            el.style.borderBottomColor = color
+            el.style.color = '#f0f4ff'
+          } else {
+            el.classList.remove('on')
+            el.style.borderBottomColor = 'transparent'
+            el.style.color = ''
+          }
+        })
+      }
+
+      function closePop() {
+        if (currentPop) {
+          currentPop.remove()
+          currentPop = null
+        }
+        if (activeNode) {
+          const el = document.getElementById('nd-' + activeNode)
+          if (el) {
+            el.classList.remove('active')
+            el.style.opacity = ''
+          }
+          activeNode = null
+        }
+        clearNodeHighlight()
+        removeTether()
+      }
+
+      // ═══════════════════════════════════════════════
+      // TETHER
+      // ═══════════════════════════════════════════════
+      let tetherAnimId = null
+      function createTether(color, nodeEl) {
+        updateTether()
+      }
+      function updateTether() {
+        const svg = document.getElementById('pop-tether')
+        svg.innerHTML = ''
+        if (!activeNode || !currentPop) return
+        const nodeEl = document.getElementById(`nd-${activeNode}`)
+        if (!nodeEl) return
+        const nr = nodeEl.getBoundingClientRect()
+        const pr = currentPop.getBoundingClientRect()
+        const nx = (nr.left + nr.right) / 2,
+          ny = (nr.top + nr.bottom) / 2
+        const px = (pr.left + pr.right) / 2
+        const py =
+          ny < pr.top
+            ? pr.top
+            : ny > pr.bottom
+              ? pr.bottom
+              : (pr.top + pr.bottom) / 2
+        const color = getLayerColor(ND[activeNode]?.layer || 'L01')
+        const id = 'tg' + Date.now()
+        const grad = document.createElementNS(
+          'http://www.w3.org/2000/svg',
+          'linearGradient',
+        )
+        grad.setAttribute('id', id)
+        grad.setAttribute('x1', '0%')
+        grad.setAttribute('y1', '0%')
+        grad.setAttribute('x2', '100%')
+        grad.setAttribute('y2', '0%')
+        const s1 = document.createElementNS(
+          'http://www.w3.org/2000/svg',
+          'stop',
+        )
+        s1.setAttribute('offset', '0%')
+        s1.setAttribute('stop-color', color)
+        s1.setAttribute('stop-opacity', '0.7')
+        const s2 = document.createElementNS(
+          'http://www.w3.org/2000/svg',
+          'stop',
+        )
+        s2.setAttribute('offset', '100%')
+        s2.setAttribute('stop-color', color)
+        s2.setAttribute('stop-opacity', '0.2')
+        grad.appendChild(s1)
+        grad.appendChild(s2)
+        const defs = document.createElementNS(
+          'http://www.w3.org/2000/svg',
+          'defs',
+        )
+        defs.appendChild(grad)
+        svg.appendChild(defs)
+        const cp1x = nx + (px - nx) * 0.4,
+          cp1y = ny,
+          cp2x = px - (px - nx) * 0.4,
+          cp2y = py
+        const path = document.createElementNS(
+          'http://www.w3.org/2000/svg',
+          'path',
+        )
+        path.setAttribute(
+          'd',
+          `M${nx},${ny} C${cp1x},${cp1y} ${cp2x},${cp2y} ${px},${py}`,
+        )
+        path.setAttribute('fill', 'none')
+        path.setAttribute('stroke', `url(#${id})`)
+        path.setAttribute('stroke-width', '1.5')
+        path.setAttribute('stroke-dasharray', '5 3')
+        path.style.animation = 'dash-travel 2s linear infinite'
+        svg.appendChild(path)
+        const dot = document.createElementNS(
+          'http://www.w3.org/2000/svg',
+          'circle',
+        )
+        dot.setAttribute('cx', nx)
+        dot.setAttribute('cy', ny)
+        dot.setAttribute('r', '3')
+        dot.setAttribute('fill', color)
+        dot.setAttribute('opacity', '0.8')
+        svg.appendChild(dot)
+      }
+      function removeTether() {
+        document.getElementById('pop-tether').innerHTML = ''
+      }
+
+      // ═══════════════════════════════════════════════
+      // DRAGGABLE POPOVER
+      // ═══════════════════════════════════════════════
+      function makeDraggable(pop) {
+        const hdr = pop.querySelector('#pop-hdr')
+        hdr.addEventListener('mousedown', (e) => {
+          if (e.target.closest('.pop-x')) return
+          popDragging = true
+          pop.classList.add('dragging')
+          popDx = e.clientX - parseInt(pop.style.left || 0)
+          popDy = e.clientY - parseInt(pop.style.top || 0)
+          e.preventDefault()
+        })
+        hdr.addEventListener(
+          'touchstart',
+          (e) => {
+            if (e.target.closest('.pop-x')) return
+            const t = e.touches[0]
+            popDragging = true
+            pop.classList.add('dragging')
+            popDx = t.clientX - parseInt(pop.style.left || 0)
+            popDy = t.clientY - parseInt(pop.style.top || 0)
+            e.stopPropagation()
+          },
+          { passive: false },
+        )
+        document.addEventListener('mousemove', onPopDrag)
+        document.addEventListener('touchmove', onPopTouchDrag, {
+          passive: false,
+        })
+        document.addEventListener('mouseup', stopPopDrag)
+        document.addEventListener('touchend', stopPopDrag)
+      }
+      function onPopDrag(e) {
+        if (!popDragging || !currentPop) return
+        const vw = window.innerWidth,
+          vh = window.innerHeight
+        const PW = parseInt(currentPop.style.width || 364)
+        const PH = currentPop.offsetHeight || 400
+        const left = Math.max(8, Math.min(vw - PW - 8, e.clientX - popDx))
+        const top = Math.max(60, Math.min(vh - PH - 64, e.clientY - popDy))
+        currentPop.style.left = left + 'px'
+        currentPop.style.top = top + 'px'
+        updateTether()
+      }
+      function onPopTouchDrag(e) {
+        if (!popDragging || !currentPop) return
+        e.preventDefault()
+        const t = e.touches[0]
+        const vw = window.innerWidth,
+          vh = window.innerHeight
+        const PW = parseInt(currentPop.style.width || 364)
+        const PH = currentPop.offsetHeight || 400
+        const left = Math.max(8, Math.min(vw - PW - 8, t.clientX - popDx))
+        const top = Math.max(60, Math.min(vh - PH - 64, t.clientY - popDy))
+        currentPop.style.left = left + 'px'
+        currentPop.style.top = top + 'px'
+        updateTether()
+      }
+      function stopPopDrag() {
+        if (!popDragging) return
+        popDragging = false
+        currentPop?.classList.remove('dragging')
+      }
+
+      // ═══════════════════════════════════════════════
+      // NODE CLICK
+      // ═══════════════════════════════════════════════
+      function handleNodeClick(e) {
+        if (IS_TOUCH && e.type === 'touchend') {
+          const t = e.changedTouches[0]
+          const el = document.elementFromPoint(t.clientX, t.clientY)
+          const node = el?.closest('.fnode')
+          if (!node) return
+          const id = node.id.replace('nd-', '')
+          if (isPlaying) {
+            togglePlay()
+          }
+          openNode(id)
+          return
+        }
+        if (dragDist > 8) return
+        const node = e.currentTarget
+        const id = node.id.replace('nd-', '')
+        if (isPlaying) {
+          togglePlay()
+        }
+        openNode(id)
+      }
+
+      // Close popover when clicking stage bg
+      document.getElementById('stage').addEventListener('click', (e) => {
+        if (!e.target.closest('.fnode') && !e.target.closest('.popover'))
+          closePop()
+      })
+
+      // ═══════════════════════════════════════════════
+      // FLOW ANIMATION
+      // ═══════════════════════════════════════════════
+      let isPlaying = false,
+        currentStep = -1,
+        flowTimer = null
+      const FLOW_DURATION = 2800
+
+      function buildFlowTray() {
+        const tray = document.getElementById('flow-tray')
+        FLOW_STEPS.forEach((s, i) => {
+          const chip = document.createElement('div')
+          chip.className = 'f-chip'
+          chip.id = `chip-${i}`
+          chip.textContent = s.label
+          chip.onclick = () => jumpToStep(i)
+          tray.appendChild(chip)
+        })
+      }
+
+      function jumpToStep(idx) {
+        if (isPlaying) stopPlay()
+        activateStep(idx)
+      }
+
+      function activateStep(idx) {
+        currentStep = idx
+        const step = FLOW_STEPS[idx]
+        const color = FLOW_COLORS[idx]
+        const activeNodeSet = new Set(step.nodes)
+
+        // Clear any inline opacity overrides from node-click highlighting
+        Object.keys(ND).forEach((id) => {
+          const el = document.getElementById('nd-' + id)
+          if (el) el.style.opacity = ''
+        })
+
+        // Dim all nodes, then light active ones
+        Object.keys(ND).forEach((id) => {
+          const el = document.getElementById('nd-' + id)
+          if (el) {
+            el.classList.remove('lit')
+            el.classList.add('dimmed')
+          }
+        })
+        step.nodes.forEach((id) => {
+          const el = document.getElementById('nd-' + id)
+          if (el) {
+            el.classList.remove('dimmed')
+            el.classList.add('lit')
+          }
+        })
+
+        // Light up ALL xlinks where at least one endpoint is an active node
+        XLINKS.forEach((xl, i) => {
+          const g = document.getElementById('xl-' + i)
+          const path = g ? g.querySelector('.xconn') : null
+          const arr = document.getElementById('xl-arrow-' + i)
+          if (!g || !path) return
+          const isActive =
+            activeNodeSet.has(xl.from) || activeNodeSet.has(xl.to)
+          if (isActive) {
+            path.classList.add('active')
+            path.classList.remove('dimmed')
+            path.setAttribute('stroke', color)
+            if (arr) {
+              arr.setAttribute('fill', color)
+              arr.setAttribute('opacity', '0.9')
+            }
+          } else {
+            path.classList.remove('active')
+            path.classList.add('dimmed')
+            // Restore original color for dimmed links
+            path.setAttribute('stroke', xl.color)
+            if (arr) {
+              arr.setAttribute('fill', xl.color)
+              arr.setAttribute('opacity', '0.04')
+            }
+          }
+        })
+
+        // Chips
+        document.querySelectorAll('.f-chip').forEach((c, i) => {
+          if (i === idx) {
+            c.classList.add('on')
+            c.style.background = hexToRgba(color, 0.12)
+            c.style.color = color
+            c.style.borderColor = hexToRgba(color, 0.35)
+            c.style.boxShadow = '0 0 12px ' + hexToRgba(color, 0.2)
+          } else {
+            c.classList.remove('on')
+            c.style.background = ''
+            c.style.color = ''
+            c.style.borderColor = ''
+            c.style.boxShadow = ''
+          }
+        })
+
+        // Launch packets on all active links
+        const activeLinks = XLINKS.reduce((acc, xl, i) => {
+          if (activeNodeSet.has(xl.from) || activeNodeSet.has(xl.to))
+            acc.push(i)
+          return acc
+        }, [])
+        activeLinks.forEach((li, i) => {
+          setTimeout(() => animPkt(li, color), i * 320)
+        })
+      }
+
+      function togglePlay() {
+        if (isPlaying) stopPlay()
+        else startPlay()
+      }
+
+      function startPlay() {
+        isPlaying = true
+        document.getElementById('play-btn').textContent = '⏸ Pause'
+        document.getElementById('play-btn').classList.add('playing')
+        const nextStep = () => {
+          currentStep = (currentStep + 1) % FLOW_STEPS.length
+          activateStep(currentStep)
+          flowTimer = setTimeout(nextStep, FLOW_DURATION)
+        }
+        nextStep()
+      }
+
+      function stopPlay() {
+        isPlaying = false
+        clearTimeout(flowTimer)
+        document.getElementById('play-btn').textContent = '▶ Play Flow'
+        document.getElementById('play-btn').classList.remove('playing')
+      }
+
+      // ═══════════════════════════════════════════════
+      // PACKETS
+      // ═══════════════════════════════════════════════
+      function animPkt(xlIdx, color) {
+        const xl = XLINKS[xlIdx]
+        if (!xl) return
+        const s = getNodeViewportCenter(xl.from)
+        const t = getNodeViewportCenter(xl.to)
+        if (!s || !t) return
+        const pkt = document.createElement('div')
+        pkt.className = 'pkt'
+        pkt.style.background = color
+        pkt.style.boxShadow = `0 0 6px ${color},0 0 12px ${hexToRgba(color, 0.5)}`
+        pkt.style.opacity = '0'
+        pkt.style.width = '9px'
+        pkt.style.height = '9px'
+        document.body.appendChild(pkt)
+        const dur = 1200
+        let start = null
+        const cp1x = s.x + (t.x - s.x) * 0.4,
+          cp1y = s.y
+        const cp2x = t.x - (t.x - s.x) * 0.4,
+          cp2y = t.y
+        function step(ts) {
+          if (!start) start = ts
+          const p = Math.min((ts - start) / dur, 1)
+          const ep = p < 0.5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2
+          const x = cubicBezier(ep, s.x, cp1x, cp2x, t.x)
+          const y = cubicBezier(ep, s.y, cp1y, cp2y, t.y)
+          pkt.style.left = x - 4.5 + 'px'
+          pkt.style.top = y - 4.5 + 'px'
+          pkt.style.opacity = p < 0.1 ? p * 10 : p > 0.9 ? (1 - p) * 10 : 1
+          if (p < 1) requestAnimationFrame(step)
+          else pkt.remove()
+        }
+        requestAnimationFrame(step)
+      }
+      function cubicBezier(t, p0, p1, p2, p3) {
+        return (
+          (1 - t) ** 3 * p0 +
+          3 * (1 - t) ** 2 * t * p1 +
+          3 * (1 - t) * t ** 2 * p2 +
+          t ** 3 * p3
+        )
+      }
+
+      function getNodeViewportCenter(id) {
+        const el = document.getElementById(`nd-${id}`)
+        if (!el) return null
+        const r = el.getBoundingClientRect()
+        return { x: (r.left + r.right) / 2, y: (r.top + r.bottom) / 2 }
+      }
+
+      // ═══════════════════════════════════════════════
+      // THEME
+      // ═══════════════════════════════════════════════
+      let isDark = true
+      function toggleTheme() {
+        isDark = !isDark
+        document.body.classList.toggle('light', !isDark)
+        document.querySelector('.ctrl-theme').textContent = isDark ? '🌙' : '☀️'
+      }
+
+      // ═══════════════════════════════════════════════
+      // RESET
+      // ═══════════════════════════════════════════════
+      function resetAll() {
+        stopPlay()
+        closePop()
+        Object.keys(ND).forEach((id) => {
+          const el = document.getElementById('nd-' + id)
+          if (el) {
+            el.classList.remove('lit', 'dimmed')
+            el.style.opacity = ''
+          }
+        })
+        XLINKS.forEach((xl, i) => {
+          const g = document.getElementById('xl-' + i)
+          const path = g ? g.querySelector('.xconn') : null
+          const arr = document.getElementById('xl-arrow-' + i)
+          if (path) {
+            path.classList.remove('active', 'dimmed')
+            path.setAttribute('stroke', xl.color)
+          }
+          if (arr) {
+            arr.setAttribute('fill', xl.color)
+            arr.setAttribute('opacity', '0.22')
+          }
+        })
+        document.querySelectorAll('.f-chip').forEach((c) => {
+          c.classList.remove('on')
+          c.style.background = ''
+          c.style.color = ''
+          c.style.borderColor = ''
+          c.style.boxShadow = ''
+        })
+        zoomToFit()
+      }
+
+      // ═══════════════════════════════════════════════
+      // LEGEND
+      // ═══════════════════════════════════════════════
+      function buildLegend() {
+        const cont = document.getElementById('legend-rows')
+        LAYERS.forEach((l) => {
+          const row = document.createElement('div')
+          row.className = 'legend-row'
+          row.innerHTML = `<div class="legend-line" style="border-top-color:${l.color}"></div><span>${l.name}</span>`
+          cont.appendChild(row)
+        })
+      }
+
+      // ═══════════════════════════════════════════════
+      // INIT
+      // ═══════════════════════════════════════════════
+      window.addEventListener('DOMContentLoaded', () => {
+        buildLanes()
+        buildFlowTray()
+        buildLegend()
+        requestAnimationFrame(() => {
+          drawXLinks()
+          zoomToFit()
+        })
+      })
+      window.addEventListener('resize', () => {
+        drawXLinks()
+        updateTether()
+      })
+    </script>
+  </body>
+</html>
