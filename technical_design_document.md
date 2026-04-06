@@ -381,39 +381,52 @@ Applies configuration changes
 
 ---
 
-# 🗓 6-MONTH IMPLEMENTATION PLAN
+# 🗓 5-MONTH IMPLEMENTATION PLAN
 
-## Milestone 1 — Foundation (Month 1)
+## Milestone 1 — Foundation + Data Layer (Month 1)
 
 - Repo setup
-- Core infra
-- API skeleton
+- Core infrastructure (Docker, DB, Redis)
+- API skeleton (FastAPI)
+- Initial metrics ingestion (hostd)
+- PostgreSQL schema design
 
-## Milestone 2 — Data Layer (Month 2)
+---
 
-- Metrics ingestion
-- PostgreSQL schema
+## Milestone 2 — Intelligence Layer (Month 2)
 
-## Milestone 3 — Agent MVP (Month 3)
+- Basic OptimizerAgent
+- Pricing & Collateral logic (rule-based + early AI)
+- MCP Tool Server (core tools)
+- indexd integration
 
-- Basic optimizer
-- MCP tools
+---
 
-## Milestone 4 — Workflow Engine (Month 4)
+## Milestone 3 — Workflow Orchestration (Month 3)
 
 - Temporal integration
-- Retry logic
+- Core optimization workflows
+- Retry + failure handling
+- Event-driven triggers (n8n)
 
-## Milestone 5 — UX + Alerts (Month 5)
+---
 
-- Dashboard
-- Alert system
+## Milestone 4 — UX + Observability (Month 4)
 
-## Milestone 6 — Hardening & Launch (Month 6)
+- Dashboard (Next.js)
+- Real-time metrics UI
+- Alerts system
+- Prometheus + Grafana integration
 
-- Security
-- Testing
-- OSS release
+---
+
+## Milestone 5 — Hardening, Testing & Launch (Month 5)
+
+- Security (RBAC, audit logs)
+- End-to-end testing
+- Performance tuning
+- Documentation
+- Open-source release
 
 ---
 
@@ -425,5 +438,3 @@ Applies configuration changes
 | hostd API changes      | Adapter abstraction               |
 | Workflow failures      | Temporal durability               |
 | Data inconsistency     | Event sourcing                    |
-
-
