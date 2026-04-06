@@ -1,0 +1,1707 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SiaHost Agent — 3D Holographic Journey Map</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Fira+Code:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS3DRenderer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #010a04;
+      }
+
+      canvas#gl-canvas {
+        position: fixed;
+        inset: 0;
+        z-index: 1;
+        pointer-events: none;
+      }
+      #css3d-wrap {
+        position: fixed;
+        inset: 0;
+        z-index: 2;
+        overflow: hidden;
+        pointer-events: none;
+      }
+
+      /* ── HUD TOP-LEFT ── */
+      #hud {
+        position: fixed;
+        top: 24px;
+        left: 24px;
+        z-index: 50;
+        pointer-events: none;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-width: 320px;
+      }
+      #hbrand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      #hlogo {
+        font-family: 'Syne', sans-serif;
+        font-weight: 800;
+        font-size: 22px;
+        color: #fff;
+        letter-spacing: -0.03em;
+      }
+      #hlogomark {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #34d399, #059669);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Syne', sans-serif;
+        font-weight: 800;
+        font-size: 11px;
+        color: #fff;
+        box-shadow: 0 0 18px #34d39944;
+        letter-spacing: -0.02em;
+        flex-shrink: 0;
+      }
+      #hsubtitle {
+        font-family: 'Fira Code', monospace;
+        font-size: 10px;
+        color: rgba(185, 210, 245, 0.45);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      #hphase {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      #hpdot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #34d399;
+        flex-shrink: 0;
+        transition:
+          transform 0.26s,
+          background 0.26s;
+        box-shadow: 0 0 8px currentColor;
+      }
+      #hpname {
+        font-family: 'Syne', sans-serif;
+        font-weight: 700;
+        font-size: 13px;
+        color: #fff;
+        opacity: 1;
+        transition: opacity 0.15s;
+      }
+      #hcount {
+        font-family: 'Fira Code', monospace;
+        font-size: 10px;
+        color: rgba(185, 210, 245, 0.4);
+        margin-top: 2px;
+      }
+      #hprog {
+        height: 3px;
+        background: rgba(255, 255, 255, 0.07);
+        border-radius: 2px;
+        overflow: hidden;
+      }
+      #hprogin {
+        height: 100%;
+        width: 0%;
+        border-radius: 2px;
+        transition:
+          width 0.4s ease,
+          background 0.4s;
+        background: #34d399;
+      }
+      #hctx {
+        background: rgba(6, 14, 30, 0.75);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 12px;
+        padding: 10px 14px;
+        backdrop-filter: blur(10px);
+      }
+      #hctxname {
+        font-family: 'Syne', sans-serif;
+        font-weight: 700;
+        font-size: 11px;
+        color: #fff;
+        margin-bottom: 3px;
+      }
+      #hctxdesc {
+        font-family: 'Fira Code', monospace;
+        font-size: 9.5px;
+        color: rgba(185, 210, 245, 0.5);
+        line-height: 1.6;
+      }
+
+      /* ── HUD TOP-RIGHT ── */
+      #hright {
+        position: fixed;
+        top: 24px;
+        right: 24px;
+        z-index: 50;
+        pointer-events: all;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-end;
+      }
+      .hbtn {
+        font-family: 'Fira Code', monospace;
+        font-size: 11px;
+        font-weight: 500;
+        color: rgba(185, 210, 245, 0.75);
+        background: rgba(6, 14, 30, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 8px 16px;
+        cursor: pointer;
+        transition: all 0.2s;
+        backdrop-filter: blur(10px);
+        white-space: nowrap;
+      }
+      .hbtn:hover {
+        color: #fff;
+        border-color: rgba(255, 255, 255, 0.25);
+        background: rgba(14, 30, 60, 0.9);
+      }
+      .hbtn.on {
+        color: #34d399;
+        border-color: #34d39944;
+        background: rgba(52, 211, 153, 0.1);
+      }
+      #aplive {
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #34d399;
+        margin-left: 6px;
+        opacity: 0;
+        transition: opacity 0.3s;
+        vertical-align: middle;
+        box-shadow: 0 0 6px #34d399;
+      }
+      #aplive.v {
+        opacity: 1;
+      }
+
+      /* ── NAV ARROWS ── */
+      #navarrows {
+        position: fixed;
+        right: 24px;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 50;
+        pointer-events: all;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .navarr {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: rgba(6, 14, 30, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: rgba(185, 210, 245, 0.75);
+        font-size: 16px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        backdrop-filter: blur(10px);
+      }
+      .navarr:hover {
+        color: #fff;
+        border-color: rgba(255, 255, 255, 0.25);
+        background: rgba(14, 30, 60, 0.9);
+      }
+
+      /* ── PROGRESS DOTS ── */
+      #pdots {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 50;
+        pointer-events: all;
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .pdot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        cursor: pointer;
+        transition: all 0.25s;
+      }
+      .pdot.vis {
+        background: rgba(255, 255, 255, 0.3);
+      }
+      .pdot.cur {
+        background: #34d399;
+        box-shadow: 0 0 8px #34d399;
+        transform: scale(1.4);
+      }
+
+      /* ── DETAIL PANEL ── */
+      #panel {
+        position: fixed;
+        bottom: 0;
+        left: 50%;
+        z-index: 60;
+        pointer-events: all;
+        width: min(640px, calc(100vw - 48px));
+        background: rgba(4, 10, 24, 0.97);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-top: 2px solid #34d399;
+        border-radius: 20px 20px 0 0;
+        padding: 0;
+        backdrop-filter: blur(24px);
+        transform: translateX(-50%) translateY(calc(100% + 4px));
+        transition: transform 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      #panel.open {
+        transform: translateX(-50%) translateY(0);
+      }
+      #phead {
+        padding: 20px 24px 16px;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      #pactor {
+        font-family: 'Fira Code', monospace;
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 0.1em;
+        color: #34d399;
+        text-transform: uppercase;
+        margin-bottom: 5px;
+      }
+      #pname {
+        font-family: 'Syne', sans-serif;
+        font-weight: 700;
+        font-size: 18px;
+        color: #fff;
+      }
+      #pmeta {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 4px;
+      }
+      #pidx,
+      #pphase {
+        font-family: 'Fira Code', monospace;
+        font-size: 10px;
+        color: rgba(185, 210, 245, 0.4);
+      }
+      #pclose {
+        background: none;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        color: rgba(185, 210, 245, 0.5);
+        width: 32px;
+        height: 32px;
+        cursor: pointer;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        flex-shrink: 0;
+      }
+      #pclose:hover {
+        color: #fff;
+        border-color: rgba(255, 255, 255, 0.3);
+      }
+      #ptabs {
+        display: flex;
+        gap: 0;
+        padding: 0 24px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      .ptab {
+        font-family: 'Fira Code', monospace;
+        font-size: 11px;
+        color: rgba(185, 210, 245, 0.4);
+        padding: 10px 16px;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s;
+        margin-bottom: -1px;
+      }
+      .ptab.on {
+        color: #fff;
+        border-bottom-color: #34d399;
+      }
+      .ptab:hover:not(.on) {
+        color: rgba(185, 210, 245, 0.75);
+      }
+      #pbody {
+        padding: 18px 24px;
+        font-family: 'Fira Code', monospace;
+        font-size: 12px;
+        color: rgba(185, 210, 245, 0.7);
+        line-height: 1.8;
+        min-height: 64px;
+      }
+      #pnav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 24px 18px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      #pnavlabel {
+        font-family: 'Fira Code', monospace;
+        font-size: 10px;
+        color: rgba(185, 210, 245, 0.35);
+      }
+      .pnavbtn {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        color: rgba(185, 210, 245, 0.7);
+        padding: 7px 18px;
+        cursor: pointer;
+        font-family: 'Fira Code', monospace;
+        font-size: 11px;
+        transition: all 0.2s;
+      }
+      .pnavbtn:hover {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      /* ── KEYBOARD HINT ── */
+      #kbhint {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        z-index: 50;
+        pointer-events: none;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 4px;
+      }
+      .kbrow {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-family: 'Fira Code', monospace;
+        font-size: 9px;
+        color: rgba(185, 210, 245, 0.28);
+      }
+      .kbkey {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+        padding: 2px 6px;
+        font-size: 9px;
+      }
+
+      /* ── PHASE LABELS ── */
+      .phlbl {
+        position: fixed;
+        z-index: 5;
+        pointer-events: none;
+        transform: translate(-50%, -50%);
+        font-family: 'Fira Code', monospace;
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        text-shadow:
+          0 0 20px currentColor,
+          0 2px 8px rgba(0, 0, 0, 0.8);
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+
+      /* ── HOLOGRAPHIC CARDS ── */
+      .hcard {
+        width: 400px;
+        height: 280px;
+        background: linear-gradient(
+          145deg,
+          rgba(6, 12, 30, 0.96) 0%,
+          rgba(3, 6, 18, 0.98) 100%
+        );
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 22px;
+        padding: 26px 26px 22px;
+        position: relative;
+        overflow: hidden;
+        cursor: pointer;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: geometricPrecision;
+        transform-style: preserve-3d;
+        backface-visibility: hidden;
+        transition:
+          border-color 0.3s,
+          box-shadow 0.3s;
+      }
+      .hcard::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 16px;
+        right: 16px;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--ac, #34d399) 40%,
+          var(--ac, #34d399) 60%,
+          transparent
+        );
+        opacity: 0.6;
+      }
+      .hcard::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 22px;
+        pointer-events: none;
+        background: radial-gradient(
+          ellipse at 20% 0%,
+          color-mix(in srgb, var(--ac, #34d399) 9%, transparent) 0%,
+          transparent 65%
+        );
+      }
+      .hcard.active {
+        border-color: var(--ac, #34d399);
+        box-shadow:
+          0 0 0 1px color-mix(in srgb, var(--ac) 50%, transparent),
+          0 0 40px -6px color-mix(in srgb, var(--ac) 60%, transparent),
+          0 30px 80px -10px rgba(0, 0, 0, 0.9);
+      }
+      .hcard:not(.active) {
+        box-shadow: 0 20px 60px -10px rgba(0, 0, 0, 0.7);
+      }
+      .hc-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        flex-shrink: 0;
+      }
+      .hc-num {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 7px;
+        font-family: 'Fira Code', monospace;
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.32);
+        padding: 3px 9px;
+        letter-spacing: 0.05em;
+      }
+      .hc-title {
+        font-family: 'Syne', sans-serif;
+        font-weight: 700;
+        font-size: 18px;
+        color: #fff;
+        margin-bottom: 10px;
+        line-height: 1.2;
+        padding-right: 52px;
+        letter-spacing: -0.01em;
+      }
+      .hc-desc {
+        font-family: 'Fira Code', monospace;
+        font-size: 11.5px;
+        color: rgba(185, 210, 245, 0.65);
+        line-height: 1.72;
+        margin-bottom: 18px;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .hc-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        border-radius: 100px;
+        padding: 5px 13px;
+        font-family: 'Fira Code', monospace;
+        font-size: 10px;
+        border: 1px solid;
+      }
+      .hc-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="gl-canvas"></canvas>
+    <div id="css3d-wrap"></div>
+
+    <div id="hud">
+      <div id="hbrand">
+        <div id="hlogomark">SIA</div>
+        <div>
+          <div id="hlogo">SiaHost Agent</div>
+          <div id="hsubtitle">
+            5 Actors · 7 Phases · 16 Nodes · Agentic Optimization
+          </div>
+        </div>
+      </div>
+      <div id="hphase">
+        <div id="hpdot"></div>
+        <div>
+          <div id="hpname">Onboarding &amp; Setup</div>
+          <div id="hcount">Node 1 of 16</div>
+        </div>
+      </div>
+      <div id="hprog"><div id="hprogin"></div></div>
+      <div id="hctx">
+        <div id="hctxname">Deploy Docker Compose</div>
+        <div id="hctxdesc">
+          Operator runs docker-compose up for API, DB, Redis, Qdrant, Temporal,
+          n8n
+        </div>
+      </div>
+    </div>
+
+    <div id="hright">
+      <button class="hbtn" id="btn-ap">
+        ▶ Auto-Pilot<span id="aplive"></span>
+      </button>
+      <button class="hbtn" id="btn-ov">⊕ Overview</button>
+      <button class="hbtn" id="btn-rst">↺ Reset</button>
+    </div>
+
+    <div id="navarrows">
+      <button class="navarr" id="nav-u">↑</button>
+      <button class="navarr" id="nav-d">↓</button>
+    </div>
+
+    <div id="pdots"></div>
+
+    <div id="panel">
+      <div id="phead">
+        <div>
+          <div id="pactor">APP USER</div>
+          <div id="pname">Deploy Docker Compose</div>
+          <div id="pmeta">
+            <span id="pidx">01 / 16</span>
+            <span id="pphase">Phase 1: Onboarding &amp; Setup</span>
+          </div>
+        </div>
+        <button id="pclose">✕</button>
+      </div>
+      <div id="ptabs">
+        <div class="ptab on" data-t="0">What it does</div>
+        <div class="ptab" data-t="1">Why it matters</div>
+        <div class="ptab" data-t="2">Output</div>
+      </div>
+      <div id="pbody">
+        Operator runs docker-compose up for API, DB, Redis, Qdrant, Temporal,
+        n8n
+      </div>
+      <div id="pnav">
+        <button class="pnavbtn" id="pp">← Prev</button>
+        <span id="pnavlabel">Phase 1 of 7</span>
+        <button class="pnavbtn" id="pn">Next →</button>
+      </div>
+    </div>
+
+    <div id="kbhint">
+      <div class="kbrow">
+        <span class="kbkey">←→</span><span>Navigate</span>
+      </div>
+      <div class="kbrow">
+        <span class="kbkey">A</span><span>Auto-Pilot</span>
+      </div>
+      <div class="kbrow"><span class="kbkey">O</span><span>Overview</span></div>
+      <div class="kbrow">
+        <span class="kbkey">1–7</span><span>Jump Phase</span>
+      </div>
+      <div class="kbrow">
+        <span class="kbkey">Esc</span><span>Close Panel</span>
+      </div>
+    </div>
+
+    <script>
+      // ── DATA ─────────────────────────────────────────────────────────────────────
+      const AC = {
+        user: { label: 'APP USER', col: '#38bdf8', hex: 0x38bdf8 },
+        ai: { label: 'INTELLIGENCE LAYER', col: '#fbbf24', hex: 0xfbbf24 },
+        blockchain: { label: 'TRUST LAYER', col: '#34d399', hex: 0x34d399 },
+        platform: { label: 'INFRA LAYER', col: '#fb923c', hex: 0xfb923c },
+        data: { label: 'DATA LAYER', col: '#a78bfa', hex: 0xa78bfa },
+      }
+
+      const PH = [
+        { name: 'Onboarding & Setup', accent: '#38bdf8' },
+        { name: 'Signal Ingestion', accent: '#a78bfa' },
+        { name: 'AI Reasoning', accent: '#fbbf24' },
+        { name: 'Strategy Generation', accent: '#fbbf24' },
+        { name: 'Durable Orchestration', accent: '#fb923c' },
+        { name: 'Secure Execution', accent: '#34d399' },
+        { name: 'Observability & Iteration', accent: '#38bdf8' },
+      ]
+
+      const NODES = [
+        {
+          i: 0,
+          name: 'Deploy Docker Compose',
+          ac: 'user',
+          ph: 0,
+          pos: [0, 18, 81.8],
+          pill: 'Local-First',
+          what: 'Operator runs docker-compose up for API, DB, Redis, Qdrant, Temporal, n8n',
+          exp: 'One-command self-hosted deployment with zero cloud dependency',
+          out: 'Complete local-first stack operational',
+        },
+        {
+          i: 1,
+          name: 'Configure hostd RPC',
+          ac: 'user',
+          ph: 0,
+          pos: [340, -38.3, 134.1],
+          pill: 'Non-Custodial',
+          what: 'Set local auth token and endpoint URL to connect to hostd daemon',
+          exp: 'Non-custodial secure connection — operator retains full key control',
+          out: 'Metrics and control layer live',
+        },
+        {
+          i: 2,
+          name: 'Initialize Postgres',
+          ac: 'platform',
+          ph: 0,
+          pos: [680, 3.8, 38.3],
+          pill: 'AI Powered',
+          what: 'PostgreSQL 17 + pgvector schema deployed for all data domains',
+          exp: 'Persistent storage with vector search capability ready from boot',
+          out: 'Metrics, contracts, actions and alerts tables active',
+        },
+        {
+          i: 3,
+          name: 'Start Metrics Collector',
+          ac: 'data',
+          ph: 1,
+          pos: [1020, 33.4, 73.3],
+          pill: 'Smart Contract',
+          what: 'Metrics & Webhook Collector + indexd Insights Service begin ingestion',
+          exp: 'Real-time normalized event streams from hostd and indexd',
+          out: 'Fresh host and network data flowing into Postgres',
+        },
+        {
+          i: 4,
+          name: 'Fetch Host Metrics',
+          ac: 'data',
+          ph: 1,
+          pos: [1360, 40.7, 11.8],
+          pill: 'Live Feed',
+          what: 'Pull uptime, revenue, storage_used, and contract data from hostd',
+          exp: 'Live signal ingestion — sub-second polling via local RPC',
+          out: 'Raw host telemetry ready for AI layer',
+        },
+        {
+          i: 5,
+          name: 'Load Indexd Insights',
+          ac: 'data',
+          ph: 1,
+          pos: [1700, 41.2, -119.3],
+          pill: 'Market Data',
+          what: 'Pull network-wide pricing, collateral and competition data from indexd',
+          exp: 'Full market context available — 10,000+ hosts benchmarked',
+          out: 'Rich feature vector for AI agents',
+        },
+        {
+          i: 6,
+          name: 'Run OptimizerAgent',
+          ac: 'ai',
+          ph: 2,
+          pos: [2040, 5.4, 26.9],
+          pill: 'Autonomous Agent',
+          what: 'LangGraph agent evaluates thresholds and patterns with Claude Sonnet fallback',
+          exp: 'Autonomous decision reasoning with multi-step tool use and reflection',
+          out: 'Optimization opportunities identified and ranked',
+        },
+        {
+          i: 7,
+          name: 'Query Vector Memory',
+          ac: 'ai',
+          ph: 2,
+          pos: [2380, -11, 34.5],
+          pill: 'Long-Term Memory',
+          what: 'Qdrant vector store retrieves semantically similar past optimizations',
+          exp: 'Cosine similarity search across historical actions and outcomes',
+          out: 'Strategy informed by long-term memory context',
+        },
+        {
+          i: 8,
+          name: 'Generate Pricing Strategy',
+          ac: 'ai',
+          ph: 3,
+          pos: [2720, -28.4, -4.8],
+          pill: 'Revenue Optimizer',
+          what: 'Pricing & Collateral Optimizer proposes dynamic adjustments',
+          exp: 'Revenue-maximizing safe pricing calculated against market floor/ceiling',
+          out: 'Strategy payload with delta pricing ready',
+        },
+        {
+          i: 9,
+          name: 'Recommend Collateral',
+          ac: 'ai',
+          ph: 3,
+          pos: [3060, 15.2, -112.8],
+          pill: 'Risk-Adjusted',
+          what: 'Adjust collateral allocation based on risk exposure and network conditions',
+          exp: 'Optimal collateral levels determined with downside protection baked in',
+          out: 'Collateral change vector ready for execution',
+        },
+        {
+          i: 10,
+          name: 'Suggest Scaling Actions',
+          ac: 'ai',
+          ph: 3,
+          pos: [3400, 6, -137.8],
+          pill: 'Infra Advisor',
+          what: 'Scaling Advisor recommends hardware configuration or capacity upgrades',
+          exp: 'Infrastructure optimization plan with ROI projections per action',
+          out: 'Scaling recommendations generated and prioritized',
+        },
+        {
+          i: 11,
+          name: 'Trigger Temporal Workflow',
+          ac: 'platform',
+          ph: 4,
+          pos: [3740, -21.7, 137.9],
+          pill: 'Durable Exec',
+          what: 'Temporal workflow starts with activities, retry policy and timeouts',
+          exp: 'Guaranteed exactly-once execution with full audit trail',
+          out: 'Workflow orchestration active — progress persisted to DB',
+        },
+        {
+          i: 12,
+          name: 'Execute MCP Tools',
+          ac: 'blockchain',
+          ph: 5,
+          pos: [4080, 1, -12.4],
+          pill: 'Safe Write',
+          what: 'MCP Tool Server calls adjust_pricing / set_collateral / update_config on hostd',
+          exp: 'Controlled write access — every tool call logged and reversible',
+          out: 'hostd changes applied atomically via signed API calls',
+        },
+        {
+          i: 13,
+          name: 'Validate Contract State',
+          ac: 'blockchain',
+          ph: 5,
+          pos: [4420, 33.2, -119.6],
+          pill: 'On-Chain Verify',
+          what: 'Blockchain layer verifies storage contracts, proofs and compliance',
+          exp: 'On-chain state confirmed via Sia consensus — no trusted oracle needed',
+          out: 'Execution validated and finalized on-chain',
+        },
+        {
+          i: 14,
+          name: 'Update Dashboard',
+          ac: 'user',
+          ph: 6,
+          pos: [4760, -49.3, 83.8],
+          pill: 'Live Analytics',
+          what: 'Next.js UI reflects real-time metrics, recent actions and yield data',
+          exp: 'Full transparency — operator sees every agent decision and its impact',
+          out: 'Operator has live results and actionable insights on screen',
+        },
+        {
+          i: 15,
+          name: 'Trigger Alerts & Feedback',
+          ac: 'user',
+          ph: 6,
+          pos: [5100, -49.6, 38.5],
+          pill: 'Self-Improving',
+          what: 'Prometheus/Grafana + LangSmith alerts fire; Qdrant stores outcome for learning',
+          exp: 'Observability loop closed — every action scores the next decision cycle',
+          out: 'System self-improves for next optimization cycle',
+        },
+      ]
+
+      const CONNS = [
+        {
+          f: 0,
+          t: 1,
+          lbl: 'stack ready + RPC endpoint',
+          col: '#38bdf8',
+          spd: 0.2,
+        },
+        { f: 1, t: 2, lbl: 'auth + schema linked', col: '#38bdf8', spd: 0.11 },
+        { f: 2, t: 3, lbl: 'DB persistence active', col: '#fb923c', spd: 0.06 },
+        { f: 3, t: 4, lbl: 'ingestion started', col: '#a78bfa', spd: 0.2 },
+        {
+          f: 4,
+          t: 5,
+          lbl: 'full signal set complete',
+          col: '#a78bfa',
+          spd: 0.11,
+        },
+        { f: 5, t: 6, lbl: 'data ready for AI', col: '#a78bfa', spd: 0.06 },
+        { f: 6, t: 7, lbl: 'memory contextualized', col: '#fbbf24', spd: 0.2 },
+        {
+          f: 7,
+          t: 8,
+          lbl: 'historical context applied',
+          col: '#fbbf24',
+          spd: 0.11,
+        },
+        {
+          f: 8,
+          t: 9,
+          lbl: 'pricing + collateral aligned',
+          col: '#fbbf24',
+          spd: 0.06,
+        },
+        {
+          f: 9,
+          t: 10,
+          lbl: 'full strategy bundle ready',
+          col: '#fbbf24',
+          spd: 0.2,
+        },
+        {
+          f: 10,
+          t: 11,
+          lbl: 'strategy handed to orchestration',
+          col: '#fbbf24',
+          spd: 0.11,
+        },
+        {
+          f: 11,
+          t: 12,
+          lbl: 'durable workflow begins execution',
+          col: '#fb923c',
+          spd: 0.06,
+        },
+        {
+          f: 12,
+          t: 13,
+          lbl: 'changes applied and verified',
+          col: '#34d399',
+          spd: 0.2,
+        },
+        {
+          f: 13,
+          t: 14,
+          lbl: 'execution success reflected',
+          col: '#34d399',
+          spd: 0.11,
+        },
+        {
+          f: 14,
+          t: 15,
+          lbl: 'observability loop closed',
+          col: '#38bdf8',
+          spd: 0.06,
+        },
+        {
+          f: 15,
+          t: 6,
+          lbl: 'continuous learning cycle',
+          col: '#38bdf8',
+          spd: 0.2,
+        },
+      ]
+
+      const ICONS = {
+        coin: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z',
+        star: 'M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z',
+        search:
+          'M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z',
+        home: 'M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z',
+        grid: 'M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z',
+        doc: 'M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z',
+        people:
+          'M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z',
+        lock: 'M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z',
+        edit: 'M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z',
+        shield:
+          'M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z',
+        clock:
+          'M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z',
+        check: 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z',
+        dash: 'M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z',
+      }
+
+      function pickIcon(name, actorId) {
+        var n = name.toLowerCase()
+        if (
+          n.includes('deposit') ||
+          n.includes('usdc') ||
+          n.includes('pay') ||
+          n.includes('fee') ||
+          n.includes('dividend')
+        )
+          return ICONS.coin
+        if (
+          n.includes('scout') ||
+          n.includes('match') ||
+          n.includes('agent') ||
+          n.includes('steward')
+        )
+          return ICONS.people
+        if (
+          n.includes('nft') ||
+          n.includes('mint') ||
+          n.includes('register') ||
+          n.includes('blockchain')
+        )
+          return ICONS.star
+        if (
+          n.includes('lease') ||
+          n.includes('escrow') ||
+          n.includes('lock') ||
+          n.includes('initiate') ||
+          n.includes('sign')
+        )
+          return ICONS.lock
+        if (
+          n.includes('dashboard') ||
+          n.includes('portal') ||
+          n.includes('browse') ||
+          n.includes('listing')
+        )
+          return ICONS.grid
+        if (
+          n.includes('apply') ||
+          n.includes('application') ||
+          n.includes('submit') ||
+          n.includes('generate')
+        )
+          return ICONS.doc
+        if (n.includes('collect') || n.includes('rent')) return ICONS.coin
+        if (n.includes('home') || n.includes('property') || n.includes('house'))
+          return ICONS.home
+        if (
+          n.includes('search') ||
+          n.includes('find') ||
+          n.includes('query') ||
+          n.includes('fetch')
+        )
+          return ICONS.search
+        if (
+          n.includes('check') ||
+          n.includes('verify') ||
+          n.includes('confirm') ||
+          n.includes('validate')
+        )
+          return ICONS.check
+        if (
+          n.includes('shield') ||
+          n.includes('secure') ||
+          n.includes('protect')
+        )
+          return ICONS.shield
+        if (
+          n.includes('clock') ||
+          n.includes('time') ||
+          n.includes('schedule') ||
+          n.includes('timer') ||
+          n.includes('temporal')
+        )
+          return ICONS.clock
+        if (
+          n.includes('edit') ||
+          n.includes('write') ||
+          n.includes('draft') ||
+          n.includes('update')
+        )
+          return ICONS.edit
+        if (
+          n.includes('deploy') ||
+          n.includes('docker') ||
+          n.includes('compose') ||
+          n.includes('stack')
+        )
+          return ICONS.grid
+        if (
+          n.includes('metric') ||
+          n.includes('data') ||
+          n.includes('insight') ||
+          n.includes('load')
+        )
+          return ICONS.dash
+        if (
+          n.includes('pricing') ||
+          n.includes('collateral') ||
+          n.includes('scaling')
+        )
+          return ICONS.coin
+        if (n.includes('execute') || n.includes('mcp') || n.includes('tool'))
+          return ICONS.shield
+        if (
+          n.includes('alert') ||
+          n.includes('feedback') ||
+          n.includes('trigger')
+        )
+          return ICONS.clock
+        return ICONS[actorId] || ICONS.star
+      }
+
+      // ── GLOBALS ───────────────────────────────────────────────────────────────────
+      const CARD_SCALE = 0.45
+      const LERP = 0.03
+      let scene, camera, renderer, css3d, composer, clock
+      let curve
+      let curIdx = 0,
+        scrollT = 0,
+        lastArrived = -1
+      let isAuto = false,
+        isOv = false,
+        autoTmr = null
+      let activeTab = 0,
+        panelOpen = false
+      let visited = new Set([0])
+      const CSS_OBJS = [],
+        GLOWS = [],
+        FLOWS = [],
+        PLBLS = [],
+        PLV3 = []
+
+      // ── mkCard ────────────────────────────────────────────────────────────────────
+      function mkCard(nd) {
+        const a = AC[nd.ac]
+        const faint = a.col + '12'
+        const el = document.createElement('div')
+        el.className = 'hcard'
+        el.style.setProperty('--ac', a.col)
+        el.innerHTML = `
+        <div class="hc-icon" style="background:${faint};border-color:${a.col}2a">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="${a.col}">
+            <path d="${pickIcon(nd.name, nd.ac)}"/>
+          </svg>
+        </div>
+        <div class="hc-num">${String(nd.i + 1).padStart(2, '0')}</div>
+        <div class="hc-title">${nd.name}</div>
+        <div class="hc-desc">${nd.what}</div>
+        <div class="hc-pill" style="color:${a.col};border-color:${a.col}44;background:${faint}">
+          <span class="hc-dot" style="background:${a.col};box-shadow:0 0 5px ${a.col}"></span>
+          <span>${nd.pill}</span>
+        </div>`
+        el.addEventListener('click', () => {
+          travelTo(nd.i)
+          openPanel(nd.i)
+        })
+        return el
+      }
+
+      // ── INIT ──────────────────────────────────────────────────────────────────────
+      function init() {
+        clock = new THREE.Clock()
+        scene = new THREE.Scene()
+        scene.fog = new THREE.Fog(0x010a04, 350, 3000)
+        scene.background = new THREE.Color(0x010a04)
+
+        camera = new THREE.PerspectiveCamera(
+          52,
+          innerWidth / innerHeight,
+          1,
+          8000,
+        )
+        camera.position.set(-200, 80, 500)
+
+        renderer = new THREE.WebGLRenderer({
+          canvas: document.getElementById('gl-canvas'),
+          antialias: true,
+        })
+        renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
+        renderer.setSize(innerWidth, innerHeight)
+        renderer.toneMapping = THREE.ACESFilmicToneMapping
+        renderer.toneMappingExposure = 1.1
+
+        css3d = new THREE.CSS3DRenderer()
+        css3d.setSize(innerWidth, innerHeight)
+        css3d.domElement.style.position = 'fixed'
+        css3d.domElement.style.top = '0'
+        css3d.domElement.style.left = '0'
+        css3d.domElement.style.zIndex = '2'
+        css3d.domElement.style.pointerEvents = 'none'
+        document.getElementById('css3d-wrap').appendChild(css3d.domElement)
+
+        composer = new THREE.EffectComposer(renderer)
+        composer.addPass(new THREE.RenderPass(scene, camera))
+        try {
+          composer.addPass(
+            new THREE.UnrealBloomPass(
+              new THREE.Vector2(innerWidth, innerHeight),
+              1.4,
+              0.8,
+              0.1,
+            ),
+          )
+        } catch (e) {
+          console.warn('Bloom unavailable:', e)
+          composer = {
+            render: () => renderer.render(scene, camera),
+            setSize: () => {},
+          }
+        }
+
+        scene.add(new THREE.AmbientLight(0x010a03, 4.0))
+        const k = new THREE.DirectionalLight(0x60f0c8, 1.2)
+        k.position.set(200, 300, 200)
+        scene.add(k)
+        const f = new THREE.DirectionalLight(0xffe8b0, 0.35)
+        f.position.set(-100, -50, -200)
+        scene.add(f)
+
+        buildEnv()
+        buildNodes()
+        buildConns()
+        buildCurve()
+        buildDots()
+        buildPhaseLabels()
+        wireUI()
+        updateHUD(0)
+        animate()
+      }
+
+      // ── buildEnv ──────────────────────────────────────────────────────────────────
+      function buildEnv() {
+        const gm = new THREE.Mesh(
+          new THREE.PlaneGeometry(9792, 1400, 90, 22),
+          new THREE.MeshBasicMaterial({
+            color: 0x041508,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.05,
+          }),
+        )
+        gm.rotation.x = -Math.PI / 2
+        gm.position.set(2720, -145, 0)
+        scene.add(gm)
+
+        const pg = new THREE.BufferGeometry()
+        const pp = new Float32Array(2500 * 3)
+        for (let i = 0; i < 2500; i++) {
+          pp[i * 3] = (Math.random() - 0.5) * 10880 + 2720
+          pp[i * 3 + 1] = (Math.random() - 0.5) * 300
+          pp[i * 3 + 2] = (Math.random() - 0.5) * 1500
+        }
+        pg.setAttribute('position', new THREE.BufferAttribute(pp, 3))
+        scene.add(
+          new THREE.Points(
+            pg,
+            new THREE.PointsMaterial({
+              size: 1.2,
+              color: 0x60f0c8,
+              transparent: true,
+              opacity: 0.32,
+            }),
+          ),
+        )
+
+        const sg = new THREE.BufferGeometry()
+        const sp = new Float32Array(1800 * 3)
+        for (let i = 0; i < 1800; i++) {
+          sp[i * 3] = (Math.random() - 0.5) * 10880 + 2720
+          sp[i * 3 + 1] = Math.random() * 500 + 50
+          sp[i * 3 + 2] = (Math.random() - 0.5) * 2500
+        }
+        sg.setAttribute('position', new THREE.BufferAttribute(sp, 3))
+        scene.add(
+          new THREE.Points(
+            sg,
+            new THREE.PointsMaterial({
+              size: 0.65,
+              color: 0xa0f0c0,
+              transparent: true,
+              opacity: 0.25,
+            }),
+          ),
+        )
+      }
+
+      // ── buildNodes ────────────────────────────────────────────────────────────────
+      function buildNodes() {
+        NODES.forEach((nd) => {
+          const [x, y, z] = nd.pos
+          const a = AC[nd.ac]
+
+          const el = mkCard(nd)
+          const obj = new THREE.CSS3DObject(el)
+          obj.position.set(x, y, z)
+          obj.scale.setScalar(CARD_SCALE)
+          obj.rotation.y = (Math.random() - 0.5) * 0.14
+          obj.rotation.x = (Math.random() - 0.5) * 0.05
+          obj.userData = { floatPhase: Math.random() * Math.PI * 2, baseY: y }
+          scene.add(obj)
+          CSS_OBJS.push(obj)
+
+          const glow = new THREE.Mesh(
+            new THREE.SphereGeometry(60, 10, 6),
+            new THREE.MeshBasicMaterial({
+              color: a.hex,
+              transparent: true,
+              opacity: 0.025,
+              blending: THREE.AdditiveBlending,
+              depthWrite: false,
+            }),
+          )
+          glow.position.set(x, y, z - 30)
+          glow.userData = { floatPhase: obj.userData.floatPhase }
+          scene.add(glow)
+          GLOWS.push(glow)
+
+          const pt = new THREE.PointLight(a.hex, 0.65, 300)
+          pt.position.set(x, y, z)
+          scene.add(pt)
+        })
+      }
+
+      // ── buildConns ────────────────────────────────────────────────────────────────
+      function buildConns() {
+        CONNS.forEach((c) => {
+          const from = new THREE.Vector3(...NODES[c.f].pos)
+          const to = new THREE.Vector3(...NODES[c.t].pos)
+          const mid = from.clone().lerp(to, 0.5)
+          mid.y += 55 + (Math.random() - 0.5) * 35
+          mid.z += (Math.random() - 0.5) * 90
+          const crv = new THREE.QuadraticBezierCurve3(from, mid, to)
+          const col = new THREE.Color(c.col)
+
+          scene.add(
+            new THREE.Mesh(
+              new THREE.TubeGeometry(crv, 32, 1.3, 5, false),
+              new THREE.MeshBasicMaterial({
+                color: col,
+                transparent: true,
+                opacity: 0.16,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+              }),
+            ),
+          )
+
+          const N = 42,
+            dummy = new THREE.Object3D()
+          const inst = new THREE.InstancedMesh(
+            new THREE.SphereGeometry(2, 4, 4),
+            new THREE.MeshBasicMaterial({
+              color: col,
+              transparent: true,
+              opacity: 0.88,
+              blending: THREE.AdditiveBlending,
+              depthWrite: false,
+            }),
+            N,
+          )
+          inst.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
+          scene.add(inst)
+          FLOWS.push({
+            inst,
+            crv,
+            ts: Array.from({ length: N }, (_, j) => j / N),
+            spd: c.spd,
+            dummy,
+            N,
+          })
+        })
+      }
+
+      // ── CURVE ─────────────────────────────────────────────────────────────────────
+      function buildCurve() {
+        curve = new THREE.CatmullRomCurve3(
+          NODES.map((n) => new THREE.Vector3(...n.pos)),
+          false,
+          'catmullrom',
+          0.5,
+        )
+      }
+
+      // ── CAMERA ────────────────────────────────────────────────────────────────────
+      const OVP = new THREE.Vector3(2550, 1097, 1414)
+      const OVL = new THREE.Vector3(2550, 0, 0)
+      const _look = new THREE.Vector3()
+
+      function updateCam() {
+        if (isOv) {
+          camera.position.lerp(OVP, 0.038)
+          _look.lerp(OVL, 0.038)
+          camera.lookAt(_look)
+          return
+        }
+        const t = curIdx / Math.max(1, NODES.length - 1)
+        scrollT += (t - scrollT) * LERP
+        checkArrival()
+        const nd = NODES[curIdx]
+        const [nx, ny, nz] = nd.pos
+        camera.position.lerp(
+          new THREE.Vector3(nx - 240, ny + 55, nz + 460),
+          0.05,
+        )
+        _look.lerp(new THREE.Vector3(nx, ny, nz), 0.06)
+        camera.lookAt(_look)
+      }
+
+      function checkArrival() {
+        NODES.forEach((_, i) => {
+          const ti = i / Math.max(1, NODES.length - 1)
+          if (Math.abs(scrollT - ti) < 0.016 && lastArrived !== i) {
+            lastArrived = i
+            pulseGlow(i)
+          }
+        })
+      }
+
+      function pulseGlow(i) {
+        const g = GLOWS[i]
+        if (!g) return
+        const orig = g.material.opacity
+        let t0 = null
+        ;(function p(ts) {
+          if (!t0) t0 = ts
+          const pv = (ts - t0) / 450
+          if (pv > 1) {
+            g.material.opacity = orig
+            return
+          }
+          g.material.opacity = orig + 0.07 * Math.sin(pv * Math.PI)
+          requestAnimationFrame(p)
+        })(performance.now())
+      }
+
+      function updateFloat(t) {
+        CSS_OBJS.forEach((o, i) => {
+          const fp = o.userData.floatPhase
+          const ny = o.userData.baseY + Math.sin(t * 0.42 + fp) * 5.5
+          o.position.y = ny
+          if (GLOWS[i]) GLOWS[i].position.y = ny - 25
+        })
+      }
+
+      function updateStreams(dt) {
+        FLOWS.forEach((f) => {
+          for (let j = 0; j < f.N; j++) {
+            f.ts[j] = (f.ts[j] + f.spd * dt) % 1
+            const pt = f.crv.getPoint(f.ts[j])
+            f.dummy.position.copy(pt)
+            f.dummy.updateMatrix()
+            f.inst.setMatrixAt(j, f.dummy.matrix)
+          }
+          f.inst.instanceMatrix.needsUpdate = true
+        })
+      }
+
+      // ── PHASE LABELS ── CRITICAL BUG FIX: use -_pv.y NOT -.pv.y ──────────────────
+      const _pv = new THREE.Vector3()
+
+      function buildPhaseLabels() {
+        PH.forEach((ph, pi) => {
+          const ns = NODES.filter((n) => n.ph === pi)
+          if (!ns.length) return
+          const ax = ns.reduce((s, n) => s + n.pos[0], 0) / ns.length
+          const az = ns.reduce((s, n) => s + n.pos[2], 0) / ns.length
+          const el = document.createElement('div')
+          el.className = 'phlbl'
+          el.textContent = String(pi + 1).padStart(2, '0') + ' ' + ph.name
+          el.style.color = ph.accent
+          document.body.appendChild(el)
+          PLBLS.push(el)
+          PLV3.push(new THREE.Vector3(ax, 130, az))
+        })
+      }
+
+      function updatePhaseLabels() {
+        PLBLS.forEach((el, i) => {
+          if (!PLV3[i]) return
+          _pv.copy(PLV3[i]).project(camera)
+          const dist = camera.position.distanceTo(PLV3[i])
+          const op = Math.max(0, Math.min(0.65, 1 - (dist - 120) / 2800))
+          if (op < 0.02) {
+            el.style.display = 'none'
+            return
+          }
+          el.style.display = 'block'
+          el.style.opacity = op
+          el.style.left = (_pv.x * 0.5 + 0.5) * innerWidth + 'px'
+          el.style.top = (-_pv.y * 0.5 + 0.5) * innerHeight + 'px'
+        })
+      }
+
+      // ── HUD ───────────────────────────────────────────────────────────────────────
+      function updateHUD(idx) {
+        const nd = NODES[idx],
+          ph = PH[nd.ph],
+          a = AC[nd.ac]
+        const pn = document.getElementById('hpname')
+        pn.style.opacity = '0'
+        setTimeout(() => {
+          pn.textContent = ph.name
+          pn.style.opacity = '1'
+        }, 140)
+        const pd = document.getElementById('hpdot')
+        pd.style.background = ph.accent
+        pd.style.transform = 'scale(1.6)'
+        setTimeout(() => (pd.style.transform = 'scale(1)'), 260)
+        document.getElementById('hcount').textContent =
+          `Node ${idx + 1} of ${NODES.length}`
+        const pi = document.getElementById('hprogin')
+        pi.style.width = `${((idx + 1) / NODES.length) * 100}%`
+        pi.style.background = a.col
+        document.getElementById('hctxname').textContent = nd.name
+        document.getElementById('hctxdesc').textContent =
+          nd.what.substring(0, 72) + (nd.what.length > 72 ? '…' : '')
+        visited.add(idx)
+        updateDots(idx)
+        document.getElementById('panel').style.borderTopColor = a.col
+      }
+
+      // ── PANEL ─────────────────────────────────────────────────────────────────────
+      function openPanel(idx) {
+        const nd = NODES[idx],
+          ph = PH[nd.ph],
+          a = AC[nd.ac]
+        document.getElementById('panel').style.borderTopColor = a.col
+        document.getElementById('pactor').textContent = a.label
+        document.getElementById('pactor').style.color = a.col
+        document.getElementById('pname').textContent = nd.name
+        document.getElementById('pidx').textContent =
+          String(idx + 1).padStart(2, '0') + ' / ' + NODES.length
+        document.getElementById('pphase').textContent =
+          `Phase ${nd.ph + 1}: ${ph.name}`
+        document.getElementById('pnavlabel').textContent =
+          `Phase ${nd.ph + 1} of ${PH.length}`
+        activeTab = 0
+        syncTabs(nd)
+        document.getElementById('panel').classList.add('open')
+        panelOpen = true
+      }
+
+      function closePanel() {
+        document.getElementById('panel').classList.remove('open')
+        panelOpen = false
+      }
+
+      function syncTabs(nd) {
+        document
+          .querySelectorAll('.ptab')
+          .forEach((t, i) => t.classList.toggle('on', i === activeTab))
+        document.getElementById('pbody').textContent = [
+          nd.what,
+          nd.exp,
+          nd.out,
+        ][activeTab]
+      }
+
+      function setActiveCard(idx) {
+        CSS_OBJS.forEach((o, i) =>
+          o.element.classList.toggle('active', i === idx),
+        )
+      }
+
+      function travelTo(idx) {
+        idx = Math.max(0, Math.min(NODES.length - 1, idx))
+        curIdx = idx
+        setActiveCard(idx)
+        updateHUD(idx)
+        if (panelOpen) openPanel(idx)
+        if (isAuto) {
+          clearInterval(autoTmr)
+          autoTmr = null
+          isAuto = false
+          updateAutoUI()
+        }
+      }
+
+      // ── DOTS ──────────────────────────────────────────────────────────────────────
+      function buildDots() {
+        const c = document.getElementById('pdots')
+        NODES.forEach((_, i) => {
+          const d = document.createElement('div')
+          d.className = 'pdot' + (i === 0 ? ' cur' : '')
+          d.addEventListener('click', () => travelTo(i))
+          c.appendChild(d)
+        })
+      }
+
+      function updateDots(idx) {
+        document.querySelectorAll('.pdot').forEach((d, i) => {
+          d.classList.toggle('cur', i === idx)
+          d.classList.toggle('vis', visited.has(i) && i !== idx)
+        })
+      }
+
+      // ── WIRE UI ───────────────────────────────────────────────────────────────────
+      function wireUI() {
+        document
+          .getElementById('nav-u')
+          .addEventListener('click', () => travelTo(curIdx - 1))
+        document
+          .getElementById('nav-d')
+          .addEventListener('click', () => travelTo(curIdx + 1))
+        document.getElementById('btn-ap').addEventListener('click', toggleAuto)
+        document.getElementById('btn-ov').addEventListener('click', toggleOv)
+        document.getElementById('btn-rst').addEventListener('click', resetAll)
+        document.getElementById('pclose').addEventListener('click', closePanel)
+        document
+          .getElementById('pp')
+          .addEventListener('click', () => travelTo(curIdx - 1))
+        document
+          .getElementById('pn')
+          .addEventListener('click', () => travelTo(curIdx + 1))
+        document.querySelectorAll('.ptab').forEach((t) => {
+          t.addEventListener('click', () => {
+            activeTab = parseInt(t.dataset.t)
+            syncTabs(NODES[curIdx])
+          })
+        })
+        window.addEventListener(
+          'wheel',
+          (e) => {
+            e.preventDefault()
+            travelTo(curIdx + Math.sign(e.deltaY))
+          },
+          { passive: false },
+        )
+        window.addEventListener('keydown', (e) => {
+          if (
+            e.code === 'ArrowRight' ||
+            e.code === 'ArrowDown' ||
+            e.code === 'Space'
+          ) {
+            e.preventDefault()
+            travelTo(curIdx + 1)
+          }
+          if (e.code === 'ArrowLeft' || e.code === 'ArrowUp') {
+            e.preventDefault()
+            travelTo(curIdx - 1)
+          }
+          if (e.key === 'a' || e.key === 'A') toggleAuto()
+          if (e.key === 'o' || e.key === 'O') toggleOv()
+          if (e.code === 'Escape') closePanel()
+          if (e.key >= '1' && e.key <= '7') {
+            const f = NODES.findIndex((n) => n.ph === parseInt(e.key) - 1)
+            if (f >= 0) travelTo(f)
+          }
+        })
+        window.addEventListener('resize', onResize)
+        css3d.domElement.style.pointerEvents = 'none'
+        CSS_OBJS.forEach((o) => {
+          o.element.style.pointerEvents = 'all'
+        })
+      }
+
+      function onResize() {
+        camera.aspect = innerWidth / innerHeight
+        camera.updateProjectionMatrix()
+        renderer.setSize(innerWidth, innerHeight)
+        css3d.setSize(innerWidth, innerHeight)
+        if (composer.setSize) composer.setSize(innerWidth, innerHeight)
+      }
+
+      function toggleAuto() {
+        isAuto = !isAuto
+        if (isAuto) {
+          autoTmr = setInterval(() => {
+            travelTo((curIdx + 1) % NODES.length)
+          }, 3200)
+        } else {
+          clearInterval(autoTmr)
+          autoTmr = null
+        }
+        updateAutoUI()
+      }
+
+      function updateAutoUI() {
+        const b = document.getElementById('btn-ap'),
+          l = document.getElementById('aplive')
+        b.classList.toggle('on', isAuto)
+        b.innerHTML = `${isAuto ? '⏸ Auto-Pilot' : '▶ Auto-Pilot'}<span id="aplive"${isAuto ? ' class="v"' : ''}></span>`
+      }
+
+      function toggleOv() {
+        isOv = !isOv
+        const b = document.getElementById('btn-ov')
+        b.classList.toggle('on', isOv)
+        b.textContent = isOv ? '× Close View' : '⊕ Overview'
+      }
+
+      function resetAll() {
+        if (isAuto) {
+          isAuto = false
+          clearInterval(autoTmr)
+          autoTmr = null
+          updateAutoUI()
+        }
+        isOv = false
+        document.getElementById('btn-ov').classList.remove('on')
+        document.getElementById('btn-ov').textContent = '⊕ Overview'
+        closePanel()
+        travelTo(0)
+      }
+
+      // ── ANIMATE ───────────────────────────────────────────────────────────────────
+      function animate() {
+        requestAnimationFrame(animate)
+        const dt = clock.getDelta(),
+          t = clock.getElapsedTime()
+        updateCam()
+        updateFloat(t)
+        updateStreams(dt)
+        updatePhaseLabels()
+        composer.render()
+        css3d.render(scene, camera)
+      }
+
+      // ── BOOT ──────────────────────────────────────────────────────────────────────
+      document.addEventListener('DOMContentLoaded', () => {
+        init()
+        setTimeout(() => {
+          setActiveCard(0)
+        }, 100)
+      })
+    </script>
+  </body>
+</html>

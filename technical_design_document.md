@@ -17,7 +17,6 @@ The system continuously ingests host + network signals, reasons over them, and e
 
 ### Success Metrics
 
-- +25% increase in active Sia hosts
 - > 99.5% uptime
 - +30% contract acceptance rate
 - 80% reduction in manual interventions
